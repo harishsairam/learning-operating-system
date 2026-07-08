@@ -28,7 +28,7 @@ export function Sidebar() {
           SB
         </div>
         <div>
-          <h1 className="font-display text-xl font-bold text-primary tracking-tight">Second Brain</h1>
+          <h1 className="font-display text-xl font-bold text-primary tracking-tight">Learning OS</h1>
           <p className="text-xs font-semibold text-secondary mt-0.5 uppercase tracking-wider">Precision Learning</p>
         </div>
       </div>

@@ -64,3 +64,28 @@ CREATE POLICY "Allow all actions on categories" ON categories FOR ALL USING (tru
 CREATE POLICY "Allow all actions on topics" ON topics FOR ALL USING (true);
 CREATE POLICY "Allow all actions on learning_activities" ON learning_activities FOR ALL USING (true);
 CREATE POLICY "Allow all actions on revision_schedule" ON revision_schedule FOR ALL USING (true);
+-- Performance indexes
+
+CREATE INDEX idx_categories_project_id
+ON categories(project_id);
+
+CREATE INDEX idx_topics_category_id
+ON topics(category_id);
+
+CREATE INDEX idx_learning_activities_project_id
+ON learning_activities(project_id);
+
+CREATE INDEX idx_learning_activities_category_id
+ON learning_activities(category_id);
+
+CREATE INDEX idx_learning_activities_topic_id
+ON learning_activities(topic_id);
+
+CREATE INDEX idx_revision_schedule_activity_id
+ON revision_schedule(activity_id);
+
+CREATE INDEX idx_revision_schedule_revision_date
+ON revision_schedule(revision_date);
+
+CREATE INDEX idx_revision_schedule_completed
+ON revision_schedule(completed);

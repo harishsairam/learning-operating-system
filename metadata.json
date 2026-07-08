@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Learning OS",
+  "description": "A personal learning operating system",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
