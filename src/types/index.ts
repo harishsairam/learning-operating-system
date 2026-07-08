@@ -6,6 +6,10 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type MemoryMode = 'REFERENCE' | 'LEARN_ONCE' | 'MEMORIZE' | 'MASTER';
+
+export type SessionStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
 export interface Database {
   public: {
     Tables: {
@@ -73,6 +77,7 @@ export interface Database {
           category_id: string
           topic_id: string
           activity_type: string
+          memory_mode: string
           study_date: string
           start_time: string
           duration_minutes: number
@@ -87,6 +92,7 @@ export interface Database {
           category_id: string
           topic_id: string
           activity_type?: string
+          memory_mode?: string
           study_date: string
           start_time: string
           duration_minutes: number
@@ -101,6 +107,7 @@ export interface Database {
           category_id?: string
           topic_id?: string
           activity_type?: string
+          memory_mode?: string
           study_date?: string
           start_time?: string
           duration_minutes?: number
@@ -142,6 +149,68 @@ export interface Database {
           time_spent_minutes?: number | null
         }
       }
+      learning_sessions: {
+        Row: {
+          id: string
+          project_id: string
+          category_id: string
+          topic_id: string
+          memory_mode: string
+          activity_type: string
+          planned_duration_minutes: number
+          focused_duration_minutes: number
+          paused_duration_minutes: number
+          started_at: string
+          ended_at: string | null
+          paused_at: string | null
+          resumed_at: string | null
+          status: SessionStatus
+          reflection: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          category_id: string
+          topic_id: string
+          memory_mode?: string
+          activity_type?: string
+          planned_duration_minutes: number
+          focused_duration_minutes?: number
+          paused_duration_minutes?: number
+          started_at: string
+          ended_at?: string | null
+          paused_at?: string | null
+          resumed_at?: string | null
+          status?: SessionStatus
+          reflection?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          category_id?: string
+          topic_id?: string
+          memory_mode?: string
+          activity_type?: string
+          planned_duration_minutes?: number
+          focused_duration_minutes?: number
+          paused_duration_minutes?: number
+          started_at?: string
+          ended_at?: string | null
+          paused_at?: string | null
+          resumed_at?: string | null
+          status?: SessionStatus
+          reflection?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -163,3 +232,13 @@ export type Category = Database['public']['Tables']['categories']['Row'];
 export type Topic = Database['public']['Tables']['topics']['Row'];
 export type LearningActivity = Database['public']['Tables']['learning_activities']['Row'];
 export type RevisionSchedule = Database['public']['Tables']['revision_schedule']['Row'];
+export type LearningSession = Database['public']['Tables']['learning_sessions']['Row'];
+
+/**
+ * LearningSession with optional related data (used when fetching with joins)
+ */
+export interface LearningSessionWithRelations extends LearningSession {
+  topics?: { name: string } | null;
+  categories?: { name: string } | null;
+  projects?: { name: string } | null;
+}

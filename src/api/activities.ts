@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { LearningActivity } from '../types';
+import type { LearningActivity, MemoryMode } from '../types';
 import { addDays, format } from 'date-fns';
 
 export async function getActivities() {
@@ -23,11 +23,31 @@ export async function getActivities() {
   return data;
 }
 
+/**
+ * Maps a memory mode to the revision intervals (in days) after the initial study session.
+ * Returns an empty array for REFERENCE mode (no revisions).
+ */
+function getRevisionIntervals(memoryMode: MemoryMode): number[] {
+  switch (memoryMode) {
+    case 'REFERENCE':
+      return [];
+    case 'LEARN_ONCE':
+      return [1];
+    case 'MEMORIZE':
+      return [1, 3, 7, 15, 30];
+    case 'MASTER':
+      return [1, 3, 7, 15, 30, 60, 90, 180, 365];
+    default:
+      return [1, 3, 7, 15, 30]; // fallback to MEMORIZE
+  }
+}
+
 export async function createActivity({
   project_id,
   category_id,
   topic_id,
   activity_type,
+  memory_mode = 'MEMORIZE',
   study_date,
   start_time,
   duration_minutes,
@@ -38,6 +58,7 @@ export async function createActivity({
   category_id: string;
   topic_id: string;
   activity_type: string;
+  memory_mode?: MemoryMode;
   study_date: string;
   start_time: string;
   duration_minutes: number;
@@ -51,6 +72,7 @@ export async function createActivity({
       category_id,
       topic_id,
       activity_type,
+      memory_mode,
       study_date,
       start_time,
       duration_minutes,
@@ -62,7 +84,14 @@ export async function createActivity({
 
   if (activityError) throw activityError;
 
-  const revisionIntervals = [1, 3, 7, 15, 30];
+  // Generate revision schedule based on memory mode
+  const revisionIntervals = getRevisionIntervals(memory_mode as MemoryMode);
+  
+  if (revisionIntervals.length === 0) {
+    // REFERENCE mode: no revisions needed
+    return newActivity as LearningActivity;
+  }
+
   const sessionDate = new Date(study_date);
 
   const revisions = revisionIntervals.map((days, index) => {

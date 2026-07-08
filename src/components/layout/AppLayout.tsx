@@ -1,7 +1,47 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { SessionRecoveryModal } from '../ui/SessionRecoveryModal';
+import { useActiveSession, useCompleteSession } from '../../hooks/useSessions';
 
 export function AppLayout() {
+  const navigate = useNavigate();
+  const { data: activeSession, isLoading } = useActiveSession();
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const completeMutation = useCompleteSession();
+
+  // Show recovery modal on mount if active session exists
+  useEffect(() => {
+    if (activeSession && !isLoading) {
+      setShowRecoveryModal(true);
+    }
+  }, [activeSession, isLoading]);
+
+  const handleResumeSession = (sessionId: string) => {
+    setShowRecoveryModal(false);
+    navigate(`/sessions/${sessionId}`);
+  };
+
+  const handleFinishSession = async (sessionId: string) => {
+    try {
+      await completeMutation.mutateAsync({ sessionId });
+      setShowRecoveryModal(false);
+      navigate('/activities');
+    } catch (error) {
+      console.error('Failed to finish session:', error);
+    }
+  };
+
+  const handleDiscardSession = async (sessionId: string) => {
+    try {
+      await completeMutation.mutateAsync({ sessionId });
+      setShowRecoveryModal(false);
+    } catch (error) {
+      console.error('Failed to discard session:', error);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-background text-on-background font-sans overflow-hidden">
       <Sidebar />
@@ -15,6 +55,17 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+
+      {/* Session Recovery Modal */}
+      {showRecoveryModal && activeSession && (
+        <SessionRecoveryModal
+          session={activeSession}
+          onResume={handleResumeSession}
+          onFinish={handleFinishSession}
+          onDiscard={handleDiscardSession}
+          isLoading={completeMutation.isPending}
+        />
+      )}
     </div>
   );
 }

@@ -1,44 +1,45 @@
 import { useActivities } from '../hooks/useActivities';
-import { useTopics } from '../hooks/useTopics';
-import { useTodayRevisions, useUpcomingRevisions, useCompleteRevision, useTodayCompletedRevisions } from '../hooks/useRevisions';
-import { BookOpen, CalendarCheck, CheckCircle2, Flame, Timer, ArrowRight, Target, Activity } from 'lucide-react';
-import { format, startOfDay, subDays } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { useTodayRevisions, useCompleteRevision } from '../hooks/useRevisions';
+import { useDailyAnalytics } from '../hooks/useDailyAnalytics';
+import { useProjectsAnalytics } from '../hooks/useProjectsAnalytics';
+import { useActiveSession } from '../hooks/useSessions';
+import { BookOpen, CalendarCheck, CheckCircle2, Flame, Timer, ArrowRight, Target, Activity, Zap } from 'lucide-react';
+import { format } from 'date-fns';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { data: activities, isLoading: loadingActivities } = useActivities();
-  const { data: topics, isLoading: loadingTopics } = useTopics();
   const { data: todayRevisions, isLoading: loadingTodayRevisions } = useTodayRevisions();
-  const { data: upcomingRevisions, isLoading: loadingUpcomingRevisions } = useUpcomingRevisions();
-  const { data: todayCompletedRevisions, isLoading: loadingTodayCompleted } = useTodayCompletedRevisions();
+  const { data: dailyAnalytics, isLoading: loadingDailyAnalytics } = useDailyAnalytics();
+  const { data: projectsAnalytics, isLoading: loadingProjectsAnalytics } = useProjectsAnalytics();
+  const { data: activeSession, isLoading: loadingActiveSession } = useActiveSession();
   const completeRevision = useCompleteRevision();
 
-  if (loadingActivities || loadingTopics || loadingTodayRevisions || loadingUpcomingRevisions || loadingTodayCompleted) {
+  const isLoading = loadingActivities || loadingTodayRevisions || loadingDailyAnalytics || loadingProjectsAnalytics || loadingActiveSession;
+
+  if (isLoading) {
     return <div className="animate-pulse">Loading dashboard...</div>;
   }
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const todayActivities = activities?.filter(s => s.study_date === todayStr) || [];
-  
-  // Topics to Study
-  const uniqueActivityTopicIds = new Set(activities?.map((a: any) => a.topic_id));
-  const topicsToStudyCount = topics?.filter((t: any) => !uniqueActivityTopicIds.has(t.id)).length || 0;
 
-  // Topics to Revise
-  const topicsToReviseCount = todayRevisions?.length || 0;
+  // Daily metrics
+  const studyTimeToday = dailyAnalytics?.studyTimeToday || 0;
+  const revisionTimeToday = dailyAnalytics?.revisionTimeToday || 0;
+  const totalTimeToday = dailyAnalytics?.totalTimeToday || 0;
+  const topicsStudiedToday = dailyAnalytics?.topicsStudiedToday || 0;
+  const revisionsCompletedToday = dailyAnalytics?.revisionsCompletedToday || 0;
+  const pendingRevisionsToday = dailyAnalytics?.pendingRevisionsToday || 0;
+  const mostActiveProject = dailyAnalytics?.mostActiveProjectToday;
 
-  // Estimated Revision Time
-  const estimatedRevisionTime = topicsToReviseCount * 10;
-
-  // Highest Priority Topic
+  // Revision metrics
+  const totalRevisionsToday = revisionsCompletedToday + pendingRevisionsToday;
+  const completionRate = totalRevisionsToday > 0 ? Math.round((revisionsCompletedToday / totalRevisionsToday) * 100) : 100;
   const highestPriorityTopic = todayRevisions && todayRevisions.length > 0 
     ? todayRevisions[0].learning_activities?.topics?.name 
     : 'None';
-
-  // Revision Completion
-  const completedTodayCount = todayCompletedRevisions?.length || 0;
-  const totalRevisionsToday = completedTodayCount + topicsToReviseCount;
-  const completionRate = totalRevisionsToday > 0 ? Math.round((completedTodayCount / totalRevisionsToday) * 100) : 100;
 
   return (
     <div className="space-y-12">
@@ -60,150 +61,170 @@ export default function Dashboard() {
           <div className="flex-1 w-full bg-surface-container-lowest border border-outline-variant p-4 rounded-xl flex items-center justify-between">
             <span className="text-secondary flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-surface-container-high flex items-center justify-center text-xs">1</span>
-              Topics to Study
+              Study Time Today
             </span>
-            <span className="text-on-surface">{topicsToStudyCount}</span>
+            <span className="text-on-surface">{studyTimeToday} min</span>
           </div>
           <ArrowRight className="hidden sm:block text-outline-variant w-5 h-5 shrink-0" />
           <div className="flex-1 w-full bg-surface-container-lowest border border-outline-variant p-4 rounded-xl flex items-center justify-between">
             <span className="text-secondary flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-surface-container-high flex items-center justify-center text-xs">2</span>
-              Revisions Due
+              Revision Time Today
             </span>
-            <span className="text-on-surface">{topicsToReviseCount}</span>
+            <span className="text-on-surface">{revisionTimeToday} min</span>
           </div>
           <ArrowRight className="hidden sm:block text-outline-variant w-5 h-5 shrink-0" />
           <div className="flex-1 w-full bg-surface-container-lowest border border-outline-variant p-4 rounded-xl flex items-center justify-between">
             <span className="text-secondary flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-surface-container-high flex items-center justify-center text-xs">3</span>
-              Revision Progress
+              Total Time
             </span>
-            <span className="text-on-surface">{completionRate}% Done</span>
+            <span className="text-on-surface">{totalTimeToday} min</span>
           </div>
         </div>
       </section>
 
+      {/* Active Session Card */}
+      {activeSession && (
+        <section className="bg-gradient-to-br from-primary-container/20 to-primary-container/10 border-2 border-primary-container/50 rounded-2xl p-6 md:p-8">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-primary-container/30 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-primary-container animate-pulse" />
+                </div>
+                <span className="text-sm font-bold text-primary-container uppercase tracking-widest">
+                  🟢 Session Active
+                </span>
+              </div>
+              <h4 className="font-display text-2xl font-bold text-on-surface mb-2">{activeSession.topics?.name || 'Session'}</h4>
+              <div className="text-sm text-secondary mb-4">
+                <div>{activeSession.projects?.name} • {activeSession.categories?.name}</div>
+                <div className="mt-2">
+                  {(() => {
+                    const started = new Date(activeSession.started_at);
+                    const now = new Date();
+                    const elapsedMs = now.getTime() - started.getTime();
+                    const elapsedMin = Math.floor(elapsedMs / 60000);
+                    const remaining = Math.max(0, activeSession.planned_duration_minutes - elapsedMin);
+                    return `Elapsed: ${elapsedMin}m | Remaining: ${remaining}m`;
+                  })()}
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(`/sessions/${activeSession.id}`)}
+                className="px-4 py-2 bg-primary-container text-on-primary rounded-lg font-semibold hover:bg-primary transition-colors text-sm"
+              >
+                Continue Session
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {/* Metric 1: Topics to Study */}
+        {/* Metric 1: Study Time Today */}
         <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl anti-gravity-hover flex flex-col justify-between h-40">
           <div className="flex justify-between items-start">
-            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">To Study</span>
+            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Study Time</span>
             <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface">
               <BookOpen className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="font-display text-3xl font-bold text-on-surface">{topicsToStudyCount}</div>
-            <div className="text-sm text-secondary mt-1">Unexplored topics</div>
+            <div className="font-display text-3xl font-bold text-on-surface">{studyTimeToday}</div>
+            <div className="text-sm text-secondary mt-1">minutes today</div>
           </div>
         </div>
 
-        {/* Metric 2: Topics to Revise */}
+        {/* Metric 2: Revision Time Today */}
         <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl anti-gravity-hover flex flex-col justify-between h-40">
           <div className="flex justify-between items-start">
-            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">To Revise</span>
+            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Revision Time</span>
             <div className="w-8 h-8 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container">
               <CalendarCheck className="w-4 h-4" />
             </div>
           </div>
           <div>
             <div className="font-display text-3xl font-bold text-on-surface">
-              {topicsToReviseCount}
+              {revisionTimeToday}
             </div>
-            <div className="text-sm text-secondary mt-1">Revisions due today</div>
+            <div className="text-sm text-secondary mt-1">minutes completed</div>
           </div>
         </div>
 
-        {/* Metric 3: Estimated Time */}
+        {/* Metric 3: Topics Studied Today */}
         <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl anti-gravity-hover flex flex-col justify-between h-40">
           <div className="flex justify-between items-start">
-            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Est. Time</span>
+            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Topics</span>
             <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface">
               <Timer className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="font-display text-3xl font-bold text-on-surface">{estimatedRevisionTime} <span className="text-lg text-secondary font-normal">min</span></div>
-            <div className="text-sm text-secondary mt-1">Total revision load</div>
+            <div className="font-display text-3xl font-bold text-on-surface">{topicsStudiedToday}</div>
+            <div className="text-sm text-secondary mt-1">studied today</div>
           </div>
         </div>
 
-        {/* Metric 4: Highest Priority */}
+        {/* Metric 4: Revisions Completed */}
         <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl anti-gravity-hover flex flex-col justify-between h-40">
           <div className="flex justify-between items-start">
-            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Priority</span>
+            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Completed</span>
             <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
               <Target className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="font-display text-lg font-bold text-on-surface leading-tight line-clamp-2" title={highestPriorityTopic}>
-              {highestPriorityTopic}
-            </div>
-            <div className="text-sm text-secondary mt-1">Needs attention first</div>
+            <div className="font-display text-3xl font-bold text-on-surface">{revisionsCompletedToday}</div>
+            <div className="text-sm text-secondary mt-1">revisions done</div>
           </div>
         </div>
 
-        {/* Metric 5: Completion */}
+        {/* Metric 5: Progress */}
         <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl anti-gravity-hover flex flex-col justify-between h-40">
           <div className="flex justify-between items-start">
-            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Completion</span>
+            <span className="text-xs font-semibold text-secondary uppercase tracking-widest">Progress</span>
             <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface">
               <Activity className="w-4 h-4" />
             </div>
           </div>
           <div>
             <div className="font-display text-3xl font-bold text-on-surface">{completionRate}%</div>
-            <div className="text-sm text-secondary mt-1">{completedTodayCount} of {totalRevisionsToday} done</div>
+            <div className="text-sm text-secondary mt-1">{revisionsCompletedToday} of {totalRevisionsToday} revisions</div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left Column: Study Timeline */}
+        {/* Left Column: Most Active Project */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-display text-2xl font-bold text-on-surface">Study Timeline</h3>
-            <Link to="/activities" className="text-primary-container text-sm font-medium hover:underline">View All</Link>
+            <h3 className="font-display text-2xl font-bold text-on-surface">Most Active Project</h3>
           </div>
-          
-          <div className="relative border-l border-outline-variant ml-3 pl-6 space-y-6">
-            {activities?.slice(0, 5).map((activity: any) => (
-              <div key={activity.id} className="relative">
-                <div className="absolute -left-[31px] bg-surface w-3 h-3 rounded-full border-2 border-primary-container top-1.5" />
-                <div className="text-xs font-medium text-secondary mb-1">
-                  {format(new Date(activity.created_at), 'hh:mm a')}
-                  {activity.study_date !== todayStr && ` • ${format(new Date(activity.study_date), 'MMM d')}`}
-                </div>
-                <div className="bg-surface-container-lowest border border-outline-variant p-4 rounded-xl anti-gravity-hover group">
-                  <div className="text-[11px] font-bold tracking-wider uppercase text-secondary mb-1 flex flex-wrap gap-1 items-center">
-                    <BookOpen className="w-3 h-3 text-primary-container mr-1" />
-                    <span>{activity.topics?.categories?.projects?.name || 'Project'}</span>
-                    <span className="text-outline-variant">•</span>
-                    <span>{activity.topics?.categories?.name || 'Category'}</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-on-surface">{activity.topics?.name || 'Unknown Topic'}</h4>
-                  <div className="text-xs text-secondary mt-2 flex items-center gap-1.5">
-                    <Timer className="w-3 h-3" />
-                    {activity.duration_minutes} min
-                  </div>
+          {mostActiveProject ? (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 anti-gravity-hover">
+              <h4 className="font-display text-xl font-bold text-on-surface mb-6">{mostActiveProject.name}</h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-outline-variant/50">
+                  <span className="text-secondary text-sm">Activities Today</span>
+                  <span className="font-semibold text-on-surface">{mostActiveProject.activitiesCount}</span>
                 </div>
               </div>
-            ))}
-            {(!activities || activities.length === 0) && (
-              <div className="text-center py-8 bg-surface-container-lowest border border-outline-variant rounded-xl -ml-6">
-                <p className="text-secondary text-sm">No study activities recorded yet.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 text-center">
+              <p className="text-secondary text-sm">No activity today</p>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Today's Revisions */}
         <div>
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-display text-2xl font-bold text-on-surface">Today's Revisions</h3>
-            <Link to="/revisions/today" className="px-3 py-1 bg-surface-container-high text-secondary rounded-full text-xs font-semibold hover:bg-outline-variant/30 transition-colors">
-              {topicsToReviseCount} Remaining
+            <Link to="/revisions" className="px-3 py-1 bg-surface-container-high text-secondary rounded-full text-xs font-semibold hover:bg-outline-variant/30 transition-colors">
+              {pendingRevisionsToday} Pending
             </Link>
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
@@ -228,6 +249,55 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Project Summary */}
+      <section>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-display text-2xl font-bold text-on-surface">Project Summary</h3>
+          <Link to="/projects" className="text-primary-container text-sm font-medium hover:underline">View All</Link>
+        </div>
+        {projectsAnalytics && projectsAnalytics.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {projectsAnalytics.map((project) => (
+              <div key={project.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 anti-gravity-hover flex flex-col">
+                <h4 className="font-display text-lg font-bold text-on-surface mb-4">{project.name}</h4>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-outline-variant/50">
+                    <span className="text-secondary">Study Time</span>
+                    <span className="font-semibold text-on-surface">{project.totalStudyTime} min</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-outline-variant/50">
+                    <span className="text-secondary">Revision Time</span>
+                    <span className="font-semibold text-on-surface">{project.totalRevisionTime} min</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-outline-variant/50">
+                    <span className="text-secondary">Total Time</span>
+                    <span className="font-semibold text-on-surface">{project.totalLearningTime} min</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-outline-variant/50">
+                    <span className="text-secondary">Topics</span>
+                    <span className="font-semibold text-on-surface">{project.topicsCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-outline-variant/50">
+                    <span className="text-secondary">Activities</span>
+                    <span className="font-semibold text-on-surface">{project.activitiesCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-secondary">Pending Revisions</span>
+                    <span className={`font-semibold ${project.upcomingPendingRevisions > 0 ? 'text-orange-500' : 'text-on-surface'}`}>
+                      {project.upcomingPendingRevisions}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 text-center">
+            <p className="text-secondary text-sm">No projects yet. Create one to get started.</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

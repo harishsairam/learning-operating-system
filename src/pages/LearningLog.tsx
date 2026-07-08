@@ -1,14 +1,18 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useActivities, useCreateActivity } from '../hooks/useActivities';
 import { useProjects, useCreateProject } from '../hooks/useProjects';
 import { useCategories, useCreateCategory } from '../hooks/useCategories';
 import { useTopics, useCreateTopic } from '../hooks/useTopics';
-import { BookOpen, Clock, Link as LinkIcon } from 'lucide-react';
+import { useCreateSession } from '../hooks/useSessions';
+import { BookOpen, Clock, Link as LinkIcon, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { InlineCreateModal } from '../components/ui/InlineCreateModal';
+import type { MemoryMode } from '../types';
 
 export default function LearningLog() {
+  const navigate = useNavigate();
   const { data: activities, isLoading: loadingActivities } = useActivities();
   const { data: projects, isLoading: loadingProjects } = useProjects();
   const { data: categories, isLoading: loadingCategories } = useCategories();
@@ -18,17 +22,26 @@ export default function LearningLog() {
   const createProject = useCreateProject();
   const createCategory = useCreateCategory();
   const createTopic = useCreateTopic();
+  const createSession = useCreateSession();
 
-  const [isCreating, setIsCreating] = useState(false);
+  // Form state
   const [projectId, setProjectId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [topicId, setTopicId] = useState('');
   const [activityType, setActivityType] = useState('Study');
+  const [memoryMode, setMemoryMode] = useState<MemoryMode>('MEMORIZE');
+  
+  // Log Activity mode (existing)
+  const [isLoggingActivity, setIsLoggingActivity] = useState(false);
   const [studyDate, setStudyDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState(format(new Date(), 'HH:mm'));
   const [duration, setDuration] = useState('30');
   const [source, setSource] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Start Session mode (new)
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  const [plannedDuration, setPlannedDuration] = useState('30');
 
   // Modals state
   const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
@@ -48,7 +61,15 @@ export default function LearningLog() {
     return topics?.filter(t => t.category_id === categoryId) || [];
   }, [topics, categoryId]);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const resetFormFields = () => {
+    setProjectId('');
+    setCategoryId('');
+    setTopicId('');
+    setActivityType('Study');
+    setMemoryMode('MEMORIZE');
+  };
+
+  const handleCreateActivity = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !categoryId || !topicId || !studyDate || !startTime || !duration) return;
 
@@ -58,6 +79,7 @@ export default function LearningLog() {
         category_id: categoryId,
         topic_id: topicId,
         activity_type: activityType,
+        memory_mode: memoryMode,
         study_date: studyDate,
         start_time: startTime,
         duration_minutes: parseInt(duration),
@@ -66,11 +88,8 @@ export default function LearningLog() {
       },
       {
         onSuccess: () => {
-          setIsCreating(false);
-          setProjectId('');
-          setCategoryId('');
-          setTopicId('');
-          setActivityType('Study');
+          setIsLoggingActivity(false);
+          resetFormFields();
           setStudyDate(format(new Date(), 'yyyy-MM-dd'));
           setStartTime(format(new Date(), 'HH:mm'));
           setDuration('30');
@@ -79,6 +98,27 @@ export default function LearningLog() {
         },
       }
     );
+  };
+
+  const handleStartSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectId || !categoryId || !topicId || !plannedDuration) return;
+
+    try {
+      const session = await createSession.mutateAsync({
+        project_id: projectId,
+        category_id: categoryId,
+        topic_id: topicId,
+        memory_mode: memoryMode,
+        activity_type: activityType,
+        planned_duration_minutes: parseInt(plannedDuration),
+      });
+      
+      // Navigate to active session
+      navigate(`/sessions/${session.id}`);
+    } catch (error) {
+      console.error('Failed to create session:', error);
+    }
   };
 
   const handleCreateProject = (name: string) => {
@@ -119,37 +159,58 @@ export default function LearningLog() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          {isCreating && (
+          {(isLoggingActivity || isStartingSession) && (
             <button 
-              onClick={() => setIsCreating(false)} 
+              onClick={() => {
+                setIsLoggingActivity(false);
+                setIsStartingSession(false);
+                resetFormFields();
+              }}
               className="text-secondary hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1 mb-2"
             >
               ← Back to Log
             </button>
           )}
           <h1 className="font-display text-4xl font-bold text-on-surface mb-2 tracking-tight">
-            {isCreating ? 'Capture Learning' : 'Learning Log'}
+            {isLoggingActivity ? 'Log Learning' : isStartingSession ? 'Start Session' : 'Learning Log'}
           </h1>
           <p className="text-lg text-secondary">
-            {isCreating 
-              ? 'Record your learning activity to track progress and schedule intelligent revisions.' 
+            {isLoggingActivity 
+              ? 'Record a past learning activity to track progress and schedule intelligent revisions.' 
+              : isStartingSession
+              ? 'Start an active learning session with real-time focus tracking.'
               : 'Review your past learning activities.'}
           </p>
         </div>
-        {!isCreating && (
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-4 py-2 bg-primary-container text-on-primary rounded-lg text-sm font-semibold hover:bg-primary transition-colors flex items-center justify-center gap-2 shadow-sm"
-          >
-            <BookOpen className="h-4 w-4" />
-            Log Learning
-          </button>
+        {!isLoggingActivity && !isStartingSession && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setIsLoggingActivity(true);
+                resetFormFields();
+              }}
+              className="px-4 py-2 bg-surface-container-high text-on-surface rounded-lg text-sm font-semibold hover:bg-outline-variant/30 transition-colors flex items-center justify-center gap-2"
+            >
+              <BookOpen className="h-4 w-4" />
+              Log Learning
+            </button>
+            <button
+              onClick={() => {
+                setIsStartingSession(true);
+                resetFormFields();
+              }}
+              className="px-4 py-2 bg-primary-container text-on-primary rounded-lg text-sm font-semibold hover:bg-primary transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+              <Zap className="h-4 w-4" />
+              Start Session
+            </button>
+          </div>
         )}
       </div>
 
-      {isCreating ? (
+      {isLoggingActivity ? (
         <div className="max-w-3xl bg-surface-container-lowest border border-outline-variant rounded-xl p-6 md:p-10 shadow-sm">
-          <form onSubmit={handleCreate} className="space-y-8">
+          <form onSubmit={handleCreateActivity} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div className="flex flex-col gap-2">
@@ -229,6 +290,23 @@ export default function LearningLog() {
               </div>
 
               <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Memory Mode *</label>
+                <div className="relative">
+                  <select
+                    value={memoryMode}
+                    onChange={(e) => setMemoryMode(e.target.value as MemoryMode)}
+                    className="w-full appearance-none bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-all"
+                    required
+                  >
+                    <option value="REFERENCE">Reference (no revisions)</option>
+                    <option value="LEARN_ONCE">Learn Once (1 day)</option>
+                    <option value="MEMORIZE">Memorize (1, 3, 7, 15, 30 days)</option>
+                    <option value="MASTER">Master (1, 3, 7, 15, 30, 60, 90, 180, 365 days)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-on-surface">Date *</label>
                 <div className="relative">
                   <input
@@ -299,7 +377,10 @@ export default function LearningLog() {
             <div className="flex items-center justify-end gap-4 pt-4 border-t border-outline-variant/50">
               <button
                 type="button"
-                onClick={() => setIsCreating(false)}
+                onClick={() => {
+                  setIsLoggingActivity(false);
+                  resetFormFields();
+                }}
                 className="px-6 py-3 rounded-lg text-sm font-semibold text-primary bg-transparent border border-transparent hover:bg-surface-container-low transition-colors"
               >
                 Cancel
@@ -310,6 +391,157 @@ export default function LearningLog() {
                 className="px-6 py-3 rounded-lg text-sm font-semibold text-on-primary bg-primary-container hover:bg-primary-fixed-dim hover:text-on-primary-fixed-variant transition-colors shadow-sm disabled:opacity-50"
               >
                 Save
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : isStartingSession ? (
+        <div className="max-w-2xl bg-surface-container-lowest border border-outline-variant rounded-xl p-6 md:p-10 shadow-sm">
+          <form onSubmit={handleStartSession} className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Project *</label>
+                <div className="relative">
+                  <SearchableSelect
+                    value={projectId}
+                    onChange={(val) => {
+                      setProjectId(val);
+                      setCategoryId('');
+                      setTopicId('');
+                    }}
+                    options={projects?.map(p => ({ id: p.id, name: p.name })) || []}
+                    placeholder="Select a project"
+                    onCreate={(val) => {
+                      setCreateProjectInitialValue(val);
+                      setCreateProjectModalOpen(true);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Category *</label>
+                <div className="relative">
+                  <SearchableSelect
+                    value={categoryId}
+                    onChange={(val) => {
+                      setCategoryId(val);
+                      setTopicId('');
+                    }}
+                    options={filteredCategories.map(c => ({ id: c.id, name: c.name })) || []}
+                    placeholder="Select a category"
+                    disabled={!projectId}
+                    onCreate={projectId ? (val) => {
+                      setCreateCategoryInitialValue(val);
+                      setCreateCategoryModalOpen(true);
+                    } : undefined}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Topic *</label>
+                <div className="relative">
+                  <SearchableSelect
+                    value={topicId}
+                    onChange={(val) => setTopicId(val)}
+                    options={filteredTopics.map(t => ({ id: t.id, name: t.name })) || []}
+                    placeholder="Select a topic"
+                    disabled={!categoryId}
+                    onCreate={categoryId ? (val) => {
+                      setCreateTopicInitialValue(val);
+                      setCreateTopicModalOpen(true);
+                    } : undefined}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Activity Type *</label>
+                <div className="relative">
+                  <select
+                    value={activityType}
+                    onChange={(e) => setActivityType(e.target.value)}
+                    className="w-full appearance-none bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-all"
+                    required
+                  >
+                    <option value="Study">Study</option>
+                    <option value="Revision">Revision</option>
+                    <option value="PYQ Practice">PYQ Practice</option>
+                    <option value="Mock Test">Mock Test</option>
+                    <option value="Video Lecture">Video Lecture</option>
+                    <option value="Reading">Reading</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Memory Mode *</label>
+                <div className="relative">
+                  <select
+                    value={memoryMode}
+                    onChange={(e) => setMemoryMode(e.target.value as MemoryMode)}
+                    className="w-full appearance-none bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-all"
+                    required
+                  >
+                    <option value="REFERENCE">Reference (no revisions)</option>
+                    <option value="LEARN_ONCE">Learn Once (1 day)</option>
+                    <option value="MEMORIZE">Memorize (1, 3, 7, 15, 30 days)</option>
+                    <option value="MASTER">Master (1, 3, 7, 15, 30, 60, 90, 180, 365 days)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-on-surface">Planned Duration *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[15, 30, 45, 60, 90, 120].map((min) => (
+                    <button
+                      key={min}
+                      type="button"
+                      onClick={() => setPlannedDuration(min.toString())}
+                      className={`py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        plannedDuration === min.toString()
+                          ? 'bg-primary-container text-on-primary-container'
+                          : 'bg-surface-container-high text-on-surface hover:bg-outline-variant/30'
+                      }`}
+                    >
+                      {min}m
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={plannedDuration}
+                    onChange={(e) => setPlannedDuration(e.target.value)}
+                    placeholder="Custom (minutes)"
+                    className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-4 pt-4 border-t border-outline-variant/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsStartingSession(false);
+                  resetFormFields();
+                }}
+                className="px-6 py-3 rounded-lg text-sm font-semibold text-primary bg-transparent border border-transparent hover:bg-surface-container-low transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={createSession.isPending}
+                className="px-6 py-3 rounded-lg text-sm font-semibold text-on-primary bg-primary-container hover:bg-primary transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                <Zap className="w-4 h-4" />
+                {createSession.isPending ? 'Starting...' : 'Start Session'}
               </button>
             </div>
           </form>
