@@ -103,17 +103,26 @@ export default function LearningLog() {
   const handleStartSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !categoryId || !topicId || !plannedDuration) return;
+    const payload = {
+      project_id: projectId,
+      category_id: categoryId,
+      topic_id: topicId,
+      memory_mode: memoryMode,
+      activity_type: activityType,
+      planned_duration_minutes: parseInt(plannedDuration),
+    };
+
+    console.debug('Creating session with payload:', payload);
 
     try {
-      const session = await createSession.mutateAsync({
-        project_id: projectId,
-        category_id: categoryId,
-        topic_id: topicId,
-        memory_mode: memoryMode,
-        activity_type: activityType,
-        planned_duration_minutes: parseInt(plannedDuration),
-      });
-      
+      const session = await createSession.mutateAsync(payload as any);
+      console.debug('Create session response:', session);
+
+      if (!session || !session.id) {
+        console.error('Create session returned no id:', session);
+        return;
+      }
+
       // Navigate to active session
       navigate(`/sessions/${session.id}`);
     } catch (error) {

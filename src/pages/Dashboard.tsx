@@ -1,22 +1,59 @@
+import { useState } from 'react';
 import { useActivities } from '../hooks/useActivities';
-import { useTodayRevisions, useCompleteRevision } from '../hooks/useRevisions';
+import { useTodayRevisions, useUpcomingRevisions, useCompleteRevision, useSkipRevision, useRescheduleRevision } from '../hooks/useRevisions';
 import { useDailyAnalytics } from '../hooks/useDailyAnalytics';
 import { useProjectsAnalytics } from '../hooks/useProjectsAnalytics';
 import { useActiveSession } from '../hooks/useSessions';
-import { BookOpen, CalendarCheck, CheckCircle2, Flame, Timer, ArrowRight, Target, Activity, Zap } from 'lucide-react';
+import { BookOpen, CalendarCheck, CheckCircle2, Flame, Timer, ArrowRight, Target, Activity, Zap, Check, Clock3, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
+import { TodayPlan } from '../components/daily/TodayPlan';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data: activities, isLoading: loadingActivities } = useActivities();
   const { data: todayRevisions, isLoading: loadingTodayRevisions } = useTodayRevisions();
+  const { data: upcomingRevisions, isLoading: loadingUpcomingRevisions } = useUpcomingRevisions();
   const { data: dailyAnalytics, isLoading: loadingDailyAnalytics } = useDailyAnalytics();
   const { data: projectsAnalytics, isLoading: loadingProjectsAnalytics } = useProjectsAnalytics();
   const { data: activeSession, isLoading: loadingActiveSession } = useActiveSession();
   const completeRevision = useCompleteRevision();
+  const skipRevision = useSkipRevision();
+  const rescheduleRevision = useRescheduleRevision();
+  const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
+  const [revisionAction, setRevisionAction] = useState<'complete' | 'reschedule' | null>(null);
+  const [timeSpent, setTimeSpent] = useState('10');
+  const [completionStatus, setCompletionStatus] = useState('Good');
+  const [rescheduleDate, setRescheduleDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  const isLoading = loadingActivities || loadingTodayRevisions || loadingDailyAnalytics || loadingProjectsAnalytics || loadingActiveSession;
+  const handleCompleteRevision = (id: string) => {
+    completeRevision.mutate({ id, status: completionStatus, timeSpent: parseInt(timeSpent, 10) }, {
+      onSuccess: () => {
+        setActiveRevisionId(null);
+        setRevisionAction(null);
+      },
+    });
+  };
+
+  const handleSkipRevision = (id: string) => {
+    skipRevision.mutate(id, {
+      onSuccess: () => {
+        setActiveRevisionId(null);
+        setRevisionAction(null);
+      },
+    });
+  };
+
+  const handleRescheduleRevision = (id: string) => {
+    rescheduleRevision.mutate({ id, newDate: rescheduleDate }, {
+      onSuccess: () => {
+        setActiveRevisionId(null);
+        setRevisionAction(null);
+      },
+    });
+  };
+
+  const isLoading = loadingActivities || loadingTodayRevisions || loadingUpcomingRevisions || loadingDailyAnalytics || loadingProjectsAnalytics || loadingActiveSession;
 
   if (isLoading) {
     return <div className="animate-pulse">Loading dashboard...</div>;
@@ -54,7 +91,10 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Today's Learning Flow */}
+      <section>
+        <TodayPlan />
+      </section>
+
       <section>
         <h3 className="font-display text-xl font-bold text-on-surface mb-4">Today's Learning Flow</h3>
         <div className="flex flex-col sm:flex-row items-center gap-4 text-sm font-medium">
@@ -121,6 +161,33 @@ export default function Dashboard() {
           </div>
         </section>
       )}
+
+      <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="font-display text-2xl font-bold text-on-surface">Today’s Study Activity</h3>
+            <p className="text-sm text-secondary">Quick overview of what you’ve studied so far today.</p>
+          </div>
+          <Link to="/activities" className="text-primary-container text-sm font-medium hover:underline">Log a study session</Link>
+        </div>
+
+        {todayActivities.length === 0 ? (
+          <div className="text-center py-12 text-secondary">No study activity has been logged today yet.</div>
+        ) : (
+          <div className="space-y-4">
+            {todayActivities.slice(0, 4).map((activity: any) => (
+              <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface-container-high rounded-xl">
+                <div>
+                  <div className="text-sm font-semibold text-on-surface">{activity.topics?.name || activity.topic_id}</div>
+                  <div className="text-sm text-secondary">{activity.projects?.name || 'Project'} • {activity.categories?.name || 'Category'}</div>
+                </div>
+                <div className="text-sm text-secondary">{activity.activity_type} • {activity.memory_mode}</div>
+                <div className="text-sm font-semibold text-on-surface">{activity.duration_minutes}m</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {/* Metric 1: Study Time Today */}
@@ -234,21 +301,109 @@ export default function Dashboard() {
                 <p className="text-secondary text-sm">All caught up for today!</p>
               </div>
             ) : (
-              todayRevisions?.slice(0, 5).map((revision: any) => (
-                <div key={revision.id} className="flex items-start gap-4 p-5 border-b border-outline-variant last:border-0 hover:bg-surface-container-lowest/50 transition-colors">
-                  <div className="flex-1">
+              todayRevisions?.slice(0, 5).map((revision: any) => {
+            const isActioning = activeRevisionId === revision.id;
+
+            return (
+              <div key={revision.id} className="bg-surface-container-lowest border-b border-outline-variant last:border-0 p-5 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-bold tracking-wider uppercase text-secondary mb-1">
                       {revision.learning_activities?.topics?.categories?.name || 'Category'}
                     </div>
                     <h4 className="text-sm font-bold text-on-surface mb-1">{revision.learning_activities?.topics?.name || 'Topic'}</h4>
                     <p className="text-sm text-secondary">Revision #{revision.revision_number} • Due {format(new Date(revision.revision_date), 'MMM d')}</p>
                   </div>
+                  <div className="flex items-center gap-2 text-xs text-secondary">
+                    <Clock3 className="h-4 w-4" />
+                    {revision.learning_activities?.memory_mode || revision.learning_activities?.activity_type || 'Revision'}
+                  </div>
                 </div>
-              ))
-            )}
+
+                {isActioning ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    {revisionAction === 'complete' ? (
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-secondary">Time Spent</label>
+                          <input type="number" value={timeSpent} onChange={(e) => setTimeSpent(e.target.value)} className="w-full bg-surface-container-high border border-outline-variant rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-secondary">Status</label>
+                          <select value={completionStatus} onChange={(e) => setCompletionStatus(e.target.value)} className="w-full bg-surface-container-high border border-outline-variant rounded px-3 py-2 text-sm">
+                            <option value="Easy">Easy</option>
+                            <option value="Good">Good</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <button onClick={() => { setActiveRevisionId(null); setRevisionAction(null); }} className="w-full py-2 rounded border border-outline-variant text-sm">Cancel</button>
+                          <button onClick={() => handleCompleteRevision(revision.id)} className="w-full py-2 rounded bg-primary-container text-on-primary text-sm">Save</button>
+                        </div>
+                      </>
+                    ) : revisionAction === 'reschedule' ? (
+                      <>
+                        <div className="space-y-2 sm:col-span-2">
+                          <label className="text-xs font-semibold text-secondary">New Date</label>
+                          <input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="w-full bg-surface-container-high border border-outline-variant rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <button onClick={() => { setActiveRevisionId(null); setRevisionAction(null); }} className="w-full py-2 rounded border border-outline-variant text-sm">Cancel</button>
+                          <button onClick={() => handleRescheduleRevision(revision.id)} className="w-full py-2 rounded bg-primary-container text-on-primary text-sm">Save</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button onClick={() => { setActiveRevisionId(revision.id); setRevisionAction('complete'); }} className="px-3 py-2 rounded border border-primary-container text-primary-container text-sm">Complete</button>
+                        <button onClick={() => { setActiveRevisionId(revision.id); setRevisionAction('reschedule'); }} className="px-3 py-2 rounded border border-outline-variant text-sm">Reschedule</button>
+                        <button onClick={() => handleSkipRevision(revision.id)} className="px-3 py-2 rounded border border-outline-variant text-sm text-secondary">Skip</button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button onClick={() => { setActiveRevisionId(revision.id); setRevisionAction('complete'); }} className="px-3 py-2 rounded border border-primary-container text-primary-container text-sm">Complete</button>
+                    <button onClick={() => { setActiveRevisionId(revision.id); setRevisionAction('reschedule'); }} className="px-3 py-2 rounded border border-outline-variant text-sm">Reschedule</button>
+                    <button onClick={() => handleSkipRevision(revision.id)} className="px-3 py-2 rounded border border-outline-variant text-sm text-secondary">Skip</button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
           </div>
         </div>
       </div>
+
+      <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="font-display text-2xl font-bold text-on-surface">Upcoming Revisions</h3>
+            <p className="text-sm text-secondary">What’s scheduled next so you can plan your study flow.</p>
+          </div>
+          <Link to="/revisions" className="text-primary-container text-sm font-medium hover:underline">View all revisions</Link>
+        </div>
+
+        {upcomingRevisions?.length === 0 ? (
+          <div className="text-center py-10 text-secondary">No upcoming revisions scheduled yet.</div>
+        ) : (
+          <div className="grid gap-4">
+            {upcomingRevisions.map((revision: any) => (
+              <div key={revision.id} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Due {format(new Date(revision.revision_date), 'MMM d')}</p>
+                  <h4 className="text-sm font-semibold text-on-surface mt-1">{revision.learning_activities?.topics?.name || 'Upcoming revision'}</h4>
+                  <p className="text-sm text-secondary mt-1">{revision.learning_activities?.topics?.categories?.name || 'Category'} • {revision.learning_activities?.topics?.categories?.projects?.name || 'Project'}</p>
+                </div>
+                <div className="text-right text-sm text-secondary">
+                  <div>{revision.learning_activities?.memory_mode || revision.learning_activities?.activity_type || 'Revision'}</div>
+                  <div className="mt-2 font-semibold text-on-surface">#{revision.revision_number}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Project Summary */}
       <section>

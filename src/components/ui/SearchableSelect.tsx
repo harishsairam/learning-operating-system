@@ -12,6 +12,7 @@ interface SearchableSelectProps {
   options: Option[];
   placeholder: string;
   onCreate?: (inputValue: string) => void;
+  createLabel?: string;
   disabled?: boolean;
 }
 
@@ -21,6 +22,7 @@ export function SearchableSelect({
   options,
   placeholder,
   onCreate,
+  createLabel,
   disabled = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -124,7 +126,7 @@ export function SearchableSelect({
               )
             )}
             
-            {onCreate && search.trim() && !exactMatch && (
+            {onCreate && (search.trim() !== '' || createLabel) && !exactMatch && (
               <div
                 className="px-3 py-2 mt-1 text-sm text-primary font-medium hover:bg-primary-container/10 rounded cursor-pointer flex items-center gap-2"
                 onClick={() => {
@@ -134,7 +136,11 @@ export function SearchableSelect({
                 }}
               >
                 <Plus className="w-4 h-4" />
-                Create "{search.trim()}"
+                {createLabel ? (
+                  search.trim() ? `${createLabel} "${search.trim()}"` : createLabel
+                ) : (
+                  `Create "${search.trim()}"`
+                )}
               </div>
             )}
           </div>

@@ -11,6 +11,8 @@
 | Feature | Status | Description |
 | :--- | :--- | :--- |
 | **Dashboard** | Completed | Central hub for activity tracking, streak management, and daily review tasks. |
+| **Daily Command Center** | Completed | Planner, quick start session actions, and revision controls on the dashboard. |
+| **Active Session Resume** | Completed | Brings users back into an active learning session from the dashboard. |
 | **Learning Log** | Completed | Primary interface for capturing learning interactions with inline entity creation. |
 | **Timeline** | Completed | Chronological view of all recorded learning activities. |
 | **Projects/Categories/Topics** | Completed | Hierarchical knowledge domain management. |
@@ -27,6 +29,7 @@ The application utilizes a relational schema hosted on **Supabase (PostgreSQL)**
     - `topics`: Specific subjects (FK: category_id).
     - `learning_activities`: Core study events (FKs: project, category, topic).
     - `revision_schedule`: Planned review tasks (FK: activity_id).
+    - `daily_plans`: Daily planning entries for study topics, sessions, and priorities.
 
 ## Current Pages
 - **Dashboard (`/`)**: Overview, streaks, and upcoming revisions.

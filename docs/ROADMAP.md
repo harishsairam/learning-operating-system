@@ -16,6 +16,7 @@ Provide a low-friction, high-intent knowledge capture tool that leverages spaced
 - [x] Learning Log with inline creation
 - [x] Spaced Repetition Scheduling
 - [x] Dashboard and Timeline views
+- [x] Daily Command Center with plan builder and session resume
 
 ## Version 2: Active Recall
 - [ ] Flashcards

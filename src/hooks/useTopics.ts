@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTopics, createTopic, updateTopic, deleteTopic } from '../api/topics';
+import type { Topic } from '../types';
 
 export function useTopics() {
-  return useQuery({
+  return useQuery<Topic[]>({
     queryKey: ['topics'],
     queryFn: getTopics,
   });

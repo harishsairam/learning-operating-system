@@ -242,3 +242,37 @@ export interface LearningSessionWithRelations extends LearningSession {
   categories?: { name: string } | null;
   projects?: { name: string } | null;
 }
+
+/** Daily Plan types */
+export type PlanPriority = 'HIGH' | 'MEDIUM' | 'LOW';
+export type PlanStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface DailyPlan {
+  id: string;
+  date: string; // YYYY-MM-DD
+  project_id: string;
+  category_id: string;
+  topic_id: string;
+  memory_mode: string;
+  activity_type: string;
+  estimated_duration_minutes: number;
+  priority: PlanPriority;
+  status: PlanStatus;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DailyPlanWithRelations extends DailyPlan {
+  projects?: { name: string } | null;
+  categories?: { name: string } | null;
+  topics?: { name: string } | null;
+}
+
+export type DailyPlanInsert = Omit<DailyPlan, 'id' | 'created_at' | 'updated_at' | 'memory_mode' | 'activity_type' | 'priority' | 'status' | 'position'> & {
+  memory_mode?: string;
+  activity_type?: string;
+  priority?: PlanPriority;
+  status?: PlanStatus;
+  position?: number;
+};
