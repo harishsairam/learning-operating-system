@@ -236,7 +236,7 @@ export function TodayPlan() {
         project_id: item.project_id,
         category_id: item.category_id,
         topic_id: item.topic_id,
-        memory_mode: item.memory_mode as any,
+        memory_mode: item.memory_mode,
         activity_type: item.activity_type,
         planned_duration_minutes: item.estimated_duration_minutes,
       });

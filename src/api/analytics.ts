@@ -155,13 +155,24 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
     .from('revision_schedule')
     .select(`
       id,
-      activity_id,
+      knowledge_unit_id,
       time_spent_minutes,
       completed,
       revision_date
     `);
 
   if (revisionsError) throw revisionsError;
+
+  const { data: knowledgeUnits, error: knowledgeUnitsError } = await supabase
+    .from('knowledge_units')
+    .select('id, project_id');
+
+  if (knowledgeUnitsError) throw knowledgeUnitsError;
+
+  const knowledgeUnitProjectMap = new Map<string, string>();
+  (knowledgeUnits || []).forEach((ku) => {
+    knowledgeUnitProjectMap.set(ku.id, ku.project_id);
+  });
 
   // Build category map: category_id -> count
   const categoryMap = new Map<string, number>();
@@ -193,12 +204,6 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
     }
   });
 
-  // Build activity_id to project_id map
-  const activityProjectMap = new Map<string, string>();
-  (activities || []).forEach(activity => {
-    activityProjectMap.set(activity.id, activity.project_id);
-  });
-
   // Build metrics for each project
   const projectMetrics: ProjectMetrics[] = (projects || []).map(project => {
     // Activities for this project
@@ -210,7 +215,7 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
 
     // Revisions for this project
     const projectRevisions = (revisions || []).filter(r => 
-      activityProjectMap.get(r.activity_id) === project.id
+      knowledgeUnitProjectMap.get(r.knowledge_unit_id) === project.id
     );
     const totalRevisionTime = projectRevisions
       .filter(r => r.completed && r.time_spent_minutes)

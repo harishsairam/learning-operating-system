@@ -115,7 +115,7 @@ export default function LearningLog() {
     console.debug('Creating session with payload:', payload);
 
     try {
-      const session = await createSession.mutateAsync(payload as any);
+      const session = await createSession.mutateAsync(payload);
       console.debug('Create session response:', session);
 
       if (!session || !session.id) {

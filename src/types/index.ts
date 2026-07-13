@@ -77,12 +77,13 @@ export interface Database {
           category_id: string
           topic_id: string
           activity_type: string
-          memory_mode: string
           study_date: string
           start_time: string
+          end_time: string | null
           duration_minutes: number
           source: string | null
           notes: string | null
+          learning_session_id: string | null
           created_at: string
           updated_at: string
         }
@@ -92,12 +93,13 @@ export interface Database {
           category_id: string
           topic_id: string
           activity_type?: string
-          memory_mode?: string
           study_date: string
           start_time: string
+          end_time?: string | null
           duration_minutes: number
           source?: string | null
           notes?: string | null
+          learning_session_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -107,12 +109,63 @@ export interface Database {
           category_id?: string
           topic_id?: string
           activity_type?: string
-          memory_mode?: string
           study_date?: string
           start_time?: string
+          end_time?: string | null
           duration_minutes?: number
           source?: string | null
           notes?: string | null
+          learning_session_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      knowledge_units: {
+        Row: {
+          id: string
+          activity_id: string
+          project_id: string
+          category_id: string
+          topic_id: string
+          title: string | null
+          what_i_learned: string | null
+          active_recall_questions: string[] | null
+          importance: string | null
+          confidence: string | null
+          memory_mode: string
+          tags: string[] | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          activity_id: string
+          project_id: string
+          category_id: string
+          topic_id: string
+          title?: string | null
+          what_i_learned?: string | null
+          active_recall_questions?: string[] | null
+          importance?: string | null
+          confidence?: string | null
+          memory_mode?: string
+          tags?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          activity_id?: string
+          project_id?: string
+          category_id?: string
+          topic_id?: string
+          title?: string | null
+          what_i_learned?: string | null
+          active_recall_questions?: string[] | null
+          importance?: string | null
+          confidence?: string | null
+          memory_mode?: string
+          tags?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -120,7 +173,7 @@ export interface Database {
       revision_schedule: {
         Row: {
           id: string
-          activity_id: string
+          knowledge_unit_id: string
           revision_number: number
           revision_date: string
           completed: boolean
@@ -130,7 +183,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          activity_id: string
+          knowledge_unit_id: string
           revision_number: number
           revision_date: string
           completed?: boolean
@@ -140,7 +193,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          activity_id?: string
+          knowledge_unit_id?: string
           revision_number?: number
           revision_date?: string
           completed?: boolean
@@ -253,7 +306,7 @@ export interface DailyPlan {
   project_id: string;
   category_id: string;
   topic_id: string;
-  memory_mode: string;
+  memory_mode: MemoryMode;
   activity_type: string;
   estimated_duration_minutes: number;
   priority: PlanPriority;
@@ -270,7 +323,7 @@ export interface DailyPlanWithRelations extends DailyPlan {
 }
 
 export type DailyPlanInsert = Omit<DailyPlan, 'id' | 'created_at' | 'updated_at' | 'memory_mode' | 'activity_type' | 'priority' | 'status' | 'position'> & {
-  memory_mode?: string;
+  memory_mode?: MemoryMode;
   activity_type?: string;
   priority?: PlanPriority;
   status?: PlanStatus;

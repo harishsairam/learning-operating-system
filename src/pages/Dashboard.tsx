@@ -75,7 +75,7 @@ export default function Dashboard() {
   const totalRevisionsToday = revisionsCompletedToday + pendingRevisionsToday;
   const completionRate = totalRevisionsToday > 0 ? Math.round((revisionsCompletedToday / totalRevisionsToday) * 100) : 100;
   const highestPriorityTopic = todayRevisions && todayRevisions.length > 0 
-    ? todayRevisions[0].learning_activities?.topics?.name 
+    ? todayRevisions[0].knowledge_units?.topics?.name 
     : 'None';
 
   return (
@@ -181,7 +181,7 @@ export default function Dashboard() {
                   <div className="text-sm font-semibold text-on-surface">{activity.topics?.name || activity.topic_id}</div>
                   <div className="text-sm text-secondary">{activity.projects?.name || 'Project'} • {activity.categories?.name || 'Category'}</div>
                 </div>
-                <div className="text-sm text-secondary">{activity.activity_type} • {activity.memory_mode}</div>
+                <div className="text-sm text-secondary">{activity.activity_type}</div>
                 <div className="text-sm font-semibold text-on-surface">{activity.duration_minutes}m</div>
               </div>
             ))}
@@ -309,14 +309,14 @@ export default function Dashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-bold tracking-wider uppercase text-secondary mb-1">
-                      {revision.learning_activities?.topics?.categories?.name || 'Category'}
+                      {revision.knowledge_units?.topics?.categories?.name || 'Category'}
                     </div>
-                    <h4 className="text-sm font-bold text-on-surface mb-1">{revision.learning_activities?.topics?.name || 'Topic'}</h4>
+                    <h4 className="text-sm font-bold text-on-surface mb-1">{revision.knowledge_units?.topics?.name || 'Topic'}</h4>
                     <p className="text-sm text-secondary">Revision #{revision.revision_number} • Due {format(new Date(revision.revision_date), 'MMM d')}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-secondary">
                     <Clock3 className="h-4 w-4" />
-                    {revision.learning_activities?.memory_mode || revision.learning_activities?.activity_type || 'Revision'}
+                    {revision.knowledge_units?.memory_mode || 'Revision'}
                   </div>
                 </div>
 
@@ -392,11 +392,11 @@ export default function Dashboard() {
               <div key={revision.id} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Due {format(new Date(revision.revision_date), 'MMM d')}</p>
-                  <h4 className="text-sm font-semibold text-on-surface mt-1">{revision.learning_activities?.topics?.name || 'Upcoming revision'}</h4>
-                  <p className="text-sm text-secondary mt-1">{revision.learning_activities?.topics?.categories?.name || 'Category'} • {revision.learning_activities?.topics?.categories?.projects?.name || 'Project'}</p>
+                  <h4 className="text-sm font-semibold text-on-surface mt-1">{revision.knowledge_units?.topics?.name || 'Upcoming revision'}</h4>
+                  <p className="text-sm text-secondary mt-1">{revision.knowledge_units?.topics?.categories?.name || 'Category'} • {revision.knowledge_units?.topics?.categories?.projects?.name || 'Project'}</p>
                 </div>
                 <div className="text-right text-sm text-secondary">
-                  <div>{revision.learning_activities?.memory_mode || revision.learning_activities?.activity_type || 'Revision'}</div>
+                  <div>{revision.knowledge_units?.memory_mode || 'Revision'}</div>
                   <div className="mt-2 font-semibold text-on-surface">#{revision.revision_number}</div>
                 </div>
               </div>

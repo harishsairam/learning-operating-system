@@ -1,0 +1,233 @@
+-- ============================================================================
+-- 20260713_create_knowledge_units_table_and_migrate_revisions.sql
+-- Safe migration from Learning Activities -> Knowledge Units
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Create Knowledge Units
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.knowledge_units (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    activity_id UUID NOT NULL REFERENCES public.learning_activities(id) ON DELETE CASCADE,
+
+    project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+
+    category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
+
+    topic_id UUID NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
+
+    title TEXT,
+
+    what_i_learned TEXT,
+
+    active_recall_questions TEXT[] DEFAULT '{}',
+
+    importance TEXT,
+
+    confidence TEXT,
+
+    memory_mode TEXT NOT NULL DEFAULT 'MEMORIZE',
+
+    tags TEXT[] DEFAULT '{}',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ----------------------------------------------------------------------------
+-- Enable RLS
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE public.knowledge_units
+ENABLE ROW LEVEL SECURITY;
+
+-- ----------------------------------------------------------------------------
+-- Policy
+-- PostgreSQL DOES NOT support CREATE POLICY IF NOT EXISTS
+-- ----------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS "Allow all actions on knowledge_units"
+ON public.knowledge_units;
+
+CREATE POLICY "Allow all actions on knowledge_units"
+ON public.knowledge_units
+FOR ALL
+USING (true)
+WITH CHECK (true);
+
+-- ----------------------------------------------------------------------------
+-- Indexes
+-- ----------------------------------------------------------------------------
+
+CREATE INDEX IF NOT EXISTS idx_ku_activity
+ON public.knowledge_units(activity_id);
+
+CREATE INDEX IF NOT EXISTS idx_ku_project
+ON public.knowledge_units(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_ku_category
+ON public.knowledge_units(category_id);
+
+CREATE INDEX IF NOT EXISTS idx_ku_topic
+ON public.knowledge_units(topic_id);
+
+-- ----------------------------------------------------------------------------
+-- Add new column
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE public.revision_schedule
+ADD COLUMN IF NOT EXISTS knowledge_unit_id UUID;
+
+-- ----------------------------------------------------------------------------
+-- Copy Learning Activities into Knowledge Units
+-- ----------------------------------------------------------------------------
+
+INSERT INTO public.knowledge_units (
+
+    activity_id,
+
+    project_id,
+
+    category_id,
+
+    topic_id,
+
+    memory_mode,
+
+    created_at,
+
+    updated_at
+
+)
+
+SELECT
+
+    la.id,
+
+    la.project_id,
+
+    la.category_id,
+
+    la.topic_id,
+
+    COALESCE(la.memory_mode,'MEMORIZE'),
+
+    la.created_at,
+
+    la.updated_at
+
+FROM public.learning_activities la
+
+WHERE NOT EXISTS (
+
+    SELECT 1
+
+    FROM public.knowledge_units ku
+
+    WHERE ku.activity_id = la.id
+
+);
+
+-- ----------------------------------------------------------------------------
+-- Populate revision_schedule.knowledge_unit_id
+-- ----------------------------------------------------------------------------
+
+UPDATE public.revision_schedule rs
+
+SET knowledge_unit_id = ku.id
+
+FROM public.knowledge_units ku
+
+WHERE rs.activity_id = ku.activity_id
+
+AND rs.knowledge_unit_id IS NULL;
+
+-- ----------------------------------------------------------------------------
+-- Verify migration
+-- ----------------------------------------------------------------------------
+
+DO $$
+BEGIN
+
+IF EXISTS (
+
+SELECT 1
+
+FROM public.revision_schedule
+
+WHERE activity_id IS NOT NULL
+
+AND knowledge_unit_id IS NULL
+
+)
+
+THEN
+
+RAISE EXCEPTION
+'Migration failed. Some revisions were not linked to Knowledge Units.';
+
+END IF;
+
+END $$;
+
+-- ----------------------------------------------------------------------------
+-- Foreign key
+-- PostgreSQL DOES NOT support ADD CONSTRAINT IF NOT EXISTS
+-- ----------------------------------------------------------------------------
+
+DO $$
+
+BEGIN
+
+IF NOT EXISTS (
+
+SELECT 1
+
+FROM pg_constraint
+
+WHERE conname='fk_revision_schedule_knowledge_unit'
+
+)
+
+THEN
+
+ALTER TABLE public.revision_schedule
+
+ADD CONSTRAINT fk_revision_schedule_knowledge_unit
+
+FOREIGN KEY (knowledge_unit_id)
+
+REFERENCES public.knowledge_units(id)
+
+ON DELETE CASCADE;
+
+END IF;
+
+END $$;
+
+-- ----------------------------------------------------------------------------
+-- Index
+-- ----------------------------------------------------------------------------
+
+CREATE INDEX IF NOT EXISTS idx_revision_schedule_knowledge_unit
+
+ON public.revision_schedule(knowledge_unit_id);
+
+-- ----------------------------------------------------------------------------
+-- Only now make it mandatory
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE public.revision_schedule
+
+ALTER COLUMN knowledge_unit_id SET NOT NULL;
+
+-- ----------------------------------------------------------------------------
+-- Remove old column
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE public.revision_schedule
+
+DROP COLUMN IF EXISTS activity_id;

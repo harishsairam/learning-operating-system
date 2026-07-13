@@ -70,15 +70,15 @@ export default function TodayRevisions() {
                     <div className="w-2 h-2 rounded-full bg-primary-container"></div>
                     <span className="text-xs font-semibold text-secondary">Rev #{revision.revision_number}</span>
                   </div>
-                  <span className="text-xs font-semibold text-secondary">{revision.learning_activities?.topics?.categories?.name}</span>
+                  <span className="text-xs font-semibold text-secondary">{revision.knowledge_units?.topics?.categories?.name}</span>
                 </div>
                 
                 <h4 className="font-display text-2xl font-bold text-on-surface mb-3 group-hover:text-primary transition-colors relative z-10">
-                  {revision.learning_activities?.topics?.name}
+                  {revision.knowledge_units?.topics?.name}
                 </h4>
                 
                 <p className="text-sm text-secondary mb-8 line-clamp-2 relative z-10">
-                  {revision.learning_activities?.topics?.categories?.projects?.name}
+                  {revision.knowledge_units?.topics?.categories?.projects?.name}
                 </p>
                 
                 {isActioning ? (

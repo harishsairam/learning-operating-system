@@ -28,12 +28,31 @@ CREATE TABLE learning_activities (
   category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
   topic_id UUID NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
   activity_type TEXT DEFAULT 'Study' NOT NULL,
-  memory_mode TEXT DEFAULT 'MEMORIZE' NOT NULL,
   study_date DATE NOT NULL,
   start_time TIME NOT NULL,
+  end_time TIME,
   duration_minutes INTEGER NOT NULL,
   source TEXT,
   notes TEXT,
+  learning_session_id UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Create knowledge_units table
+CREATE TABLE knowledge_units (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID NOT NULL REFERENCES learning_activities(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  topic_id UUID NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  title TEXT,
+  what_i_learned TEXT,
+  active_recall_questions TEXT[],
+  importance TEXT,
+  confidence TEXT,
+  memory_mode TEXT NOT NULL DEFAULT 'MEMORIZE',
+  tags TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -41,7 +60,7 @@ CREATE TABLE learning_activities (
 -- Create revision_schedule table
 CREATE TABLE revision_schedule (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  activity_id UUID NOT NULL REFERENCES learning_activities(id) ON DELETE CASCADE,
+  knowledge_unit_id UUID NOT NULL REFERENCES knowledge_units(id) ON DELETE CASCADE,
   revision_number INTEGER NOT NULL,
   revision_date DATE NOT NULL,
   completed BOOLEAN DEFAULT FALSE NOT NULL,
@@ -58,12 +77,14 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_units ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revision_schedule ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all actions on projects" ON projects FOR ALL USING (true);
 CREATE POLICY "Allow all actions on categories" ON categories FOR ALL USING (true);
 CREATE POLICY "Allow all actions on topics" ON topics FOR ALL USING (true);
 CREATE POLICY "Allow all actions on learning_activities" ON learning_activities FOR ALL USING (true);
+CREATE POLICY "Allow all actions on knowledge_units" ON knowledge_units FOR ALL USING (true);
 CREATE POLICY "Allow all actions on revision_schedule" ON revision_schedule FOR ALL USING (true);
 -- Performance indexes
 
@@ -82,8 +103,20 @@ ON learning_activities(category_id);
 CREATE INDEX idx_learning_activities_topic_id
 ON learning_activities(topic_id);
 
-CREATE INDEX idx_revision_schedule_activity_id
-ON revision_schedule(activity_id);
+CREATE INDEX idx_knowledge_units_project_id
+ON knowledge_units(project_id);
+
+CREATE INDEX idx_knowledge_units_category_id
+ON knowledge_units(category_id);
+
+CREATE INDEX idx_knowledge_units_topic_id
+ON knowledge_units(topic_id);
+
+CREATE INDEX idx_knowledge_units_activity_id
+ON knowledge_units(activity_id);
+
+CREATE INDEX idx_revision_schedule_knowledge_unit_id
+ON revision_schedule(knowledge_unit_id);
 
 CREATE INDEX idx_revision_schedule_revision_date
 ON revision_schedule(revision_date);

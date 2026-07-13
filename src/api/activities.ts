@@ -72,7 +72,6 @@ export async function createActivity({
       category_id,
       topic_id,
       activity_type,
-      memory_mode,
       study_date,
       start_time,
       duration_minutes,
@@ -84,9 +83,29 @@ export async function createActivity({
 
   if (activityError) throw activityError;
 
-  // Generate revision schedule based on memory mode
+  const { data: newKnowledgeUnit, error: knowledgeUnitError } = await supabase
+    .from('knowledge_units')
+    .insert([{
+      activity_id: newActivity.id,
+      project_id,
+      category_id,
+      topic_id,
+      memory_mode,
+      title: null,
+      what_i_learned: null,
+      active_recall_questions: null,
+      importance: null,
+      confidence: null,
+      tags: null,
+    }])
+    .select()
+    .single();
+
+  if (knowledgeUnitError) throw knowledgeUnitError;
+  if (!newKnowledgeUnit) throw new Error('Failed to create knowledge unit for activity');
+
   const revisionIntervals = getRevisionIntervals(memory_mode as MemoryMode);
-  
+
   if (revisionIntervals.length === 0) {
     // REFERENCE mode: no revisions needed
     return newActivity as LearningActivity;
@@ -97,7 +116,7 @@ export async function createActivity({
   const revisions = revisionIntervals.map((days, index) => {
     const revisionDate = addDays(sessionDate, days);
     return {
-      activity_id: newActivity.id,
+      knowledge_unit_id: newKnowledgeUnit.id,
       revision_number: index + 1,
       revision_date: format(revisionDate, 'yyyy-MM-dd'),
       completed: false,

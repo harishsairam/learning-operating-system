@@ -8,8 +8,9 @@ export async function getTodayRevisions() {
     .from('revision_schedule')
     .select(`
       *,
-      learning_activities (
+      knowledge_units (
         topic_id,
+        memory_mode,
         topics (
           name,
           categories (
@@ -88,8 +89,9 @@ export async function getUpcomingRevisions() {
     .from('revision_schedule')
     .select(`
       *,
-      learning_activities (
+      knowledge_units (
         topic_id,
+        memory_mode,
         topics (
           name,
           categories (
