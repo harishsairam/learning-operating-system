@@ -9,14 +9,14 @@ export async function getActivities() {
     .from('learning_activities')
     .select(`
       *,
+      projects (
+        name
+      ),
+      categories (
+        name
+      ),
       topics (
-        name,
-        categories (
-          name,
-          projects (
-            name
-          )
-        )
+        name
       )
     `)
     .eq('user_id', user.id)

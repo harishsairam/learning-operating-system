@@ -37,6 +37,25 @@ export async function createDailyPlan(item: DailyPlanInsert) {
   return data as DailyPlanWithRelations;
 }
 
+export async function updateDailyPlan(id: string, updates: Partial<DailyPlanInsert>) {
+  const user = await ensureAuthenticated();
+  const { data, error } = await supabase
+    .from('daily_plans')
+    .update(withUserScope(updates as Record<string, unknown>, user.id))
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select(`
+      *,
+      projects (name),
+      categories (name),
+      topics (name)
+    `)
+    .single();
+
+  if (error) throw error;
+  return data as DailyPlanWithRelations;
+}
+
 export async function deleteDailyPlan(id: string) {
   const user = await ensureAuthenticated();
   const { data, error } = await supabase

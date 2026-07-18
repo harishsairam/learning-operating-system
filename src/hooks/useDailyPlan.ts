@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { getDailyPlan, createDailyPlan, deleteDailyPlan } from '../api/dailyPlans';
+import { getDailyPlan, createDailyPlan, deleteDailyPlan, updateDailyPlan } from '../api/dailyPlans';
 import { buildUserScopedQueryKey } from '../lib/queryKeys';
 import { useAuthUser } from './useAuthUser';
 import type { DailyPlanInsert, DailyPlanWithRelations } from '../types';
@@ -26,6 +26,19 @@ export function useCreateDailyPlan() {
     mutationFn: (item: DailyPlanInsert) => createDailyPlan(item),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKey(variables.date, user?.id) });
+    },
+  });
+}
+
+export function useUpdateDailyPlan() {
+  const queryClient = useQueryClient();
+  const user = useAuthUser();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<DailyPlanInsert> }) => 
+      updateDailyPlan(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: buildUserScopedQueryKey(['dailyPlan'], user?.id) });
     },
   });
 }

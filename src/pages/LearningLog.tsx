@@ -251,7 +251,7 @@ export default function LearningLog() {
                 setIsLoggingActivity(true);
                 resetFormFields();
               }}
-              className="px-4 py-2 bg-surface-container-high text-on-surface rounded-lg text-sm font-semibold hover:bg-outline-variant/30 transition-colors flex items-center justify-center gap-2"
+              className="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-fixed-dim transition-colors flex items-center justify-center gap-2 shadow-sm"
             >
               <BookOpen className="h-4 w-4" />
               Log Learning
