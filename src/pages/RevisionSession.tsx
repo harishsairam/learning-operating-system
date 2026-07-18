@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDueRevisions, useSubmitRevisionSession } from '../hooks/useRevisions';
 import { FlashCard } from '../components/revisions/FlashCard';
-import { SRSControls } from '../components/revisions/SRSControls';
 import { CheckCircle2, ArrowLeft, Trophy, Clock, Brain, CalendarCheck, Target } from 'lucide-react';
 import type { KnowledgeUnit } from '../types';
 
@@ -14,20 +13,7 @@ export default function RevisionSession() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
   const [cardStartTime, setCardStartTime] = useState<number>(Date.now());
-  
-  // Track the reviews we've completed in this session
-  const [reviews, setReviews] = useState<Array<{
-    knowledge_unit_id: string;
-    project_id: string;
-    category_id: string;
-    topic_id: string;
-    status: 'Easy' | 'Good' | 'Hard' | 'Again';
-    timeSpentSeconds: number;
-    previousEase: number;
-    previousInterval: number;
-    previousRepetitions: number;
-    questionsCount: number;
-  }>>([]);
+  const [completedCount, setCompletedCount] = useState(0);
 
   const isComplete = dueRevisions && currentIndex >= dueRevisions.length;
 
@@ -37,35 +23,17 @@ export default function RevisionSession() {
     setIsAnswerVisible(false);
   }, [currentIndex]);
 
-  const handleRate = (status: 'Easy' | 'Good' | 'Hard' | 'Again') => {
+  const handleRate = () => {
     if (!dueRevisions || !dueRevisions[currentIndex]) return;
-    
+
     const unit = dueRevisions[currentIndex] as KnowledgeUnit;
     const timeSpentSeconds = Math.floor((Date.now() - cardStartTime) / 1000);
-    const questionsCount = unit.active_recall_questions?.length || 0;
 
-    const newReview = {
-      knowledge_unit_id: unit.id,
-      project_id: unit.project_id,
-      category_id: unit.category_id,
-      topic_id: unit.topic_id,
-      status,
-      timeSpentSeconds,
-      previousEase: unit.srs_ease_factor,
-      previousInterval: unit.srs_interval,
-      previousRepetitions: unit.srs_repetitions,
-      questionsCount
-    };
-
-    const updatedReviews = [...reviews, newReview];
-    setReviews(updatedReviews);
+    setCompletedCount(prev => prev + 1);
+    submitSession.mutate({ knowledgeUnitId: unit.id });
 
     if (currentIndex + 1 >= dueRevisions.length) {
-      // Finished all cards, submit session
-      submitSession.mutate({
-        session_id: null,
-        reviews: updatedReviews
-      });
+      setCurrentIndex(dueRevisions.length);
     } else {
       setCurrentIndex(prev => prev + 1);
     }
@@ -91,12 +59,12 @@ export default function RevisionSession() {
   }
 
   if (isComplete) {
-    const totalTimeSeconds = reviews.reduce((acc, r) => acc + r.timeSpentSeconds, 0);
+    const totalTimeSeconds = completedCount * 30;
     const minutes = Math.floor(totalTimeSeconds / 60);
     const seconds = totalTimeSeconds % 60;
     const formattedTime = `${minutes}m ${seconds}s`;
-    
-    const totalQuestions = reviews.reduce((acc, r) => acc + r.questionsCount, 0);
+
+    const totalQuestions = dueRevisions?.reduce((acc, unit) => acc + (unit.active_recall_questions?.length || 0), 0) || 0;
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] animate-in fade-in zoom-in duration-500">
@@ -109,7 +77,7 @@ export default function RevisionSession() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
             <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant text-center">
               <Brain className="w-5 h-5 text-secondary mx-auto mb-2" />
-              <div className="text-2xl font-display font-bold text-on-surface mb-1">{reviews.length}</div>
+              <div className="text-2xl font-display font-bold text-on-surface mb-1">{completedCount}</div>
               <div className="text-xs font-bold text-secondary uppercase tracking-wider">Topics</div>
             </div>
             <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant text-center">
@@ -124,7 +92,7 @@ export default function RevisionSession() {
             </div>
             <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant text-center">
               <CalendarCheck className="w-5 h-5 text-secondary mx-auto mb-2" />
-              <div className="text-2xl font-display font-bold text-on-surface mb-1">{reviews.length}</div>
+              <div className="text-2xl font-display font-bold text-on-surface mb-1">{completedCount}</div>
               <div className="text-xs font-bold text-secondary uppercase tracking-wider">Scheduled</div>
             </div>
           </div>
@@ -187,7 +155,14 @@ export default function RevisionSession() {
         
         {isAnswerVisible && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <SRSControls onRate={handleRate} />
+            <div className="w-full max-w-2xl mx-auto mt-6">
+              <button
+                onClick={handleRate}
+                className="w-full py-4 bg-primary text-on-primary rounded-xl font-bold text-lg hover:bg-primary-fixed-dim transition-colors"
+              >
+                Mark as Revised
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -39,7 +39,7 @@ export function useDeleteActivity() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, mode }: { id: string, mode: number }) => deleteActivity(id, mode),
+    mutationFn: ({ id }: { id: string }) => deleteActivity(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Save, GripVertical, CheckSquare, Square, ClipboardPaste, BookOpen } from 'lucide-react';
 import { useActivityKnowledgeUnits, useUpdateKnowledgeUnit } from '../../hooks/useKnowledgeUnits';
 import type { KnowledgeUnit } from '../../types';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
+import { calculateNextReviewDate } from '../../lib/revisions';
 
 interface RevisionSetupDialogProps {
   isOpen: boolean;
@@ -94,33 +95,23 @@ export function RevisionSetupDialog({ isOpen, onClose, activityId }: RevisionSet
   };
 
   const applyBulkImportance = (importance: string) => {
-    let srs_interval = 1;
-    if (importance === 'High') srs_interval = 1;
-    else if (importance === 'Medium') srs_interval = 3;
-    else if (importance === 'Low') srs_interval = 7;
-    const srs_ease_factor = 2.5;
-    const next_review_date = format(addDays(new Date(), srs_interval), 'yyyy-MM-dd');
+    const nextReviewDate = format(calculateNextReviewDate(importance === 'High' ? 0 : importance === 'Medium' ? 1 : 2, new Date()), 'yyyy-MM-dd');
 
     setLocalKUs(prev => {
       const next = { ...prev };
       selectedKUs.forEach(id => {
-        next[id] = { ...next[id], importance, srs_interval, srs_ease_factor, next_review_date };
+        next[id] = { ...next[id], importance, next_review_date: nextReviewDate };
       });
       return next;
     });
   };
 
   const handleImportanceChange = (kuId: string, importance: string) => {
-    let srs_interval = 1;
-    if (importance === 'High') srs_interval = 1;
-    else if (importance === 'Medium') srs_interval = 3;
-    else if (importance === 'Low') srs_interval = 7;
-    const srs_ease_factor = 2.5;
-    const next_review_date = format(addDays(new Date(), srs_interval), 'yyyy-MM-dd');
+    const nextReviewDate = format(calculateNextReviewDate(importance === 'High' ? 0 : importance === 'Medium' ? 1 : 2, new Date()), 'yyyy-MM-dd');
 
     setLocalKUs(prev => ({
       ...prev,
-      [kuId]: { ...prev[kuId], importance, srs_interval, srs_ease_factor, next_review_date }
+      [kuId]: { ...prev[kuId], importance, next_review_date: nextReviewDate }
     }));
   };
 
@@ -190,8 +181,6 @@ export function RevisionSetupDialog({ isOpen, onClose, activityId }: RevisionSet
           id: ku.id,
           updates: {
             importance: ku.importance,
-            srs_interval: ku.srs_interval,
-            srs_ease_factor: ku.srs_ease_factor,
             next_review_date: ku.next_review_date,
             active_recall_questions: cleanedQuestions.length > 0 ? cleanedQuestions : null
           }
@@ -234,7 +223,7 @@ export function RevisionSetupDialog({ isOpen, onClose, activityId }: RevisionSet
         <div className="flex flex-col md:flex-row md:items-center justify-between p-6 border-b border-outline-variant/50 gap-4">
           <div>
             <h2 className="text-2xl font-bold font-display text-on-surface">Batch Revision Setup</h2>
-            <p className="text-sm text-secondary">Configure SRS schedules and recall questions rapidly.</p>
+            <p className="text-sm text-secondary">Set review timing and recall questions for the selected knowledge units.</p>
           </div>
           
           <div className="flex items-center gap-2">

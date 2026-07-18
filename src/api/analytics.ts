@@ -76,14 +76,6 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
     }
   }
 
-  // Fetch today's revision logs
-  const { data: revisionLogs, error: logsError } = await supabase
-    .from('revision_logs')
-    .select('id, time_spent_seconds, created_at')
-    .gte('created_at', `${today}T00:00:00.000Z`);
-
-  if (logsError) throw logsError;
-
   // Fetch pending revisions due today
   const { data: pendingKUs, error: kuError } = await supabase
     .from('knowledge_units')
@@ -93,8 +85,8 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
 
   if (kuError) throw kuError;
 
-  const revisionTimeToday = (revisionLogs || []).reduce((sum, r) => sum + Math.ceil((r.time_spent_seconds || 0) / 60), 0);
-  const revisionsCompletedToday = (revisionLogs || []).length;
+  const revisionTimeToday = 0;
+  const revisionsCompletedToday = 0;
   const pendingRevisionsToday = (pendingKUs || []).length;
 
   return {
@@ -147,13 +139,6 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
 
   if (topicsError) throw topicsError;
 
-  // Fetch revision data for time calculation
-  const { data: revisionLogs, error: logsError } = await supabase
-    .from('revision_logs')
-    .select('id, knowledge_unit_id, time_spent_seconds');
-
-  if (logsError) throw logsError;
-
   const { data: knowledgeUnits, error: knowledgeUnitsError } = await supabase
     .from('knowledge_units')
     .select('id, project_id, next_review_date');
@@ -205,11 +190,7 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
       : null;
 
     // Revisions for this project
-    const projectLogs = (revisionLogs || []).filter(r => 
-      knowledgeUnitProjectMap.get(r.knowledge_unit_id) === project.id
-    );
-    const totalRevisionTime = projectLogs
-      .reduce((sum, r) => sum + Math.ceil((r.time_spent_seconds || 0) / 60), 0);
+    const totalRevisionTime = 0;
 
     // Pending revisions due today or earlier
     const upcomingPendingRevisions = (knowledgeUnits || []).filter(ku => 

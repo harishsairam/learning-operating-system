@@ -75,7 +75,7 @@ export default function TodayRevisions() {
                 <div className="flex justify-between items-start mb-6 relative z-10">
                   <div className="bg-surface-container-low px-3 py-1 rounded-full border border-outline-variant flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-primary-container"></div>
-                    <span className="text-xs font-semibold text-secondary">Rev #{unit.srs_repetitions}</span>
+                    <span className="text-xs font-semibold text-secondary">Stage {unit.revision_stage ?? 0}</span>
                   </div>
                   <span className="text-xs font-semibold text-secondary">{unit.topics?.categories?.name}</span>
                 </div>

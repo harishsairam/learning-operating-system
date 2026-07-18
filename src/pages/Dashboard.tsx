@@ -272,7 +272,7 @@ export default function Dashboard() {
                         {revision.topics?.categories?.name || 'Category'}
                       </div>
                       <h4 className="text-sm font-bold text-on-surface mb-1">{revision.title || revision.topics?.name || 'Topic'}</h4>
-                      <p className="text-sm text-secondary">Revision #{revision.srs_repetitions} • Due {format(new Date(revision.next_review_date), 'MMM d')}</p>
+                      <p className="text-sm text-secondary">Stage {revision.revision_stage ?? 0} • Due {format(new Date(revision.next_review_date), 'MMM d')}</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-secondary">
                       <Clock3 className="h-4 w-4" />
@@ -313,7 +313,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right text-sm text-secondary">
                   <div>{revision.memory_mode || 'Revision'}</div>
-                  <div className="mt-2 font-semibold text-on-surface">#{revision.srs_repetitions}</div>
+                  <div className="mt-2 font-semibold text-on-surface">Stage {revision.revision_stage ?? 0}</div>
                 </div>
               </div>
             ))}

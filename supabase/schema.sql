@@ -7,15 +7,16 @@
 --
 -- 1. Core Domain Tables: projects, categories, topics
 -- 2. Learning Tracking: learning_activities, knowledge_units, learning_sessions
--- 3. Revision System: revision_logs (with SRS columns in knowledge_units)
+-- 3. Revision System: knowledge_units only
 -- 4. Row Level Security (RLS) policies (created after tables to avoid errors)
 -- 5. Performance indexes
 --
 -- NOTES:
--- - The legacy revision_schedule table is intentionally removed. It has been
---   replaced by SRS columns in knowledge_units + revision_logs for detailed logs.
--- - RPC functions (e.g., delete_learning_log_safe) are created by migrations,
---   not by this schema file.
+-- - The original revision_schedule and revision_logs tables are removed.
+--   Revisions are tracked directly on knowledge_units with a fixed stage schedule.
+-- - Deletion Behavior: Deleting a learning_activity cascades to:
+--   1. All knowledge_units linked via activity_id (ON DELETE CASCADE)
+--   This simplifies deletion to a single operation with predictable, safe results.
 -- - All timestamps use UTC timezone.
 -- - RLS is enabled for MVP with permissive policies (not recommended for production).
 --
@@ -76,10 +77,9 @@ CREATE TABLE knowledge_units (
   confidence TEXT,
   memory_mode TEXT NOT NULL DEFAULT 'MEMORIZE',
   tags TEXT[],
-  srs_ease_factor REAL DEFAULT 2.5 NOT NULL,
-  srs_interval INTEGER DEFAULT 0 NOT NULL,
-  srs_repetitions INTEGER DEFAULT 0 NOT NULL,
+  revision_stage INTEGER NOT NULL DEFAULT 0,
   next_review_date DATE,
+  last_reviewed_at DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -129,6 +129,9 @@ ON knowledge_units(topic_id);
 CREATE INDEX idx_knowledge_units_activity_id
 ON knowledge_units(activity_id);
 
+CREATE INDEX idx_knowledge_units_next_review_date
+ON knowledge_units(next_review_date);
+
 -- Create learning_sessions table
 CREATE TABLE learning_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -166,25 +169,8 @@ CREATE TABLE learning_sessions (
 ALTER TABLE learning_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all actions on learning_sessions" ON learning_sessions FOR ALL USING (true);
 
--- Create revision_logs table
-CREATE TABLE revision_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  activity_id UUID REFERENCES learning_activities(id) ON DELETE SET NULL,
-  knowledge_unit_id UUID NOT NULL REFERENCES knowledge_units(id) ON DELETE CASCADE,
-  quality INTEGER NOT NULL,
-  time_spent_seconds INTEGER,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-
-ALTER TABLE revision_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all actions on revision_logs" ON revision_logs FOR ALL USING (true);
-
 -- Indexes for learning_sessions
 CREATE INDEX idx_learning_sessions_project_id ON learning_sessions(project_id);
 CREATE INDEX idx_learning_sessions_topic_id ON learning_sessions(topic_id);
 CREATE INDEX idx_learning_sessions_status ON learning_sessions(status);
 CREATE INDEX idx_learning_sessions_started_at ON learning_sessions(started_at);
-
--- Indexes for revision_logs
-CREATE INDEX idx_revision_logs_activity_id ON revision_logs(activity_id);
-CREATE INDEX idx_revision_logs_knowledge_unit_id ON revision_logs(knowledge_unit_id);

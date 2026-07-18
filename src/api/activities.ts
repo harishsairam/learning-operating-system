@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { LearningActivity, MemoryMode } from '../types';
-import { addDays, format } from 'date-fns';
+import { createInitialRevisionState } from '../lib/revisions';
 
 export async function getActivities() {
   const { data, error } = await supabase
@@ -65,6 +65,7 @@ export async function createActivity({
 
   if (activityError) throw activityError;
 
+  const revisionState = createInitialRevisionState(study_date);
   const { data: newKnowledgeUnit, error: knowledgeUnitError } = await supabase
     .from('knowledge_units')
     .insert([{
@@ -79,10 +80,9 @@ export async function createActivity({
       importance: null,
       confidence: null,
       tags: null,
-      srs_ease_factor: 2.5,
-      srs_interval: memory_mode === 'REFERENCE' ? 0 : 1,
-      srs_repetitions: 0,
-      next_review_date: memory_mode === 'REFERENCE' ? null : format(addDays(new Date(study_date), 1), 'yyyy-MM-dd')
+      revision_stage: revisionState.revision_stage,
+      next_review_date: memory_mode === 'REFERENCE' ? null : revisionState.next_review_date,
+      last_reviewed_at: revisionState.last_reviewed_at,
     }])
     .select()
     .single();
@@ -135,11 +135,11 @@ export async function updateActivity(
   return data as LearningActivity;
 }
 
-export async function deleteActivity(id: string, mode: number) {
-  const { error } = await supabase.rpc('delete_learning_log_safe', {
-    p_activity_id: id,
-    p_mode: mode
-  });
+export async function deleteActivity(id: string) {
+  const { error } = await supabase
+    .from('learning_activities')
+    .delete()
+    .eq('id', id);
 
   if (error) throw error;
   return true;
