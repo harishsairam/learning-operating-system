@@ -1,8 +1,10 @@
 import { supabase } from '../lib/supabase';
+import { ensureAuthenticated, withUserScope } from '../lib/auth';
 import type { LearningActivity, MemoryMode } from '../types';
 import { createInitialRevisionState } from '../lib/revisions';
 
 export async function getActivities() {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('learning_activities')
     .select(`
@@ -17,6 +19,7 @@ export async function getActivities() {
         )
       )
     `)
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -47,9 +50,10 @@ export async function createActivity({
   source?: string;
   notes?: string;
 }) {
+  const user = await ensureAuthenticated();
   const { data: newActivity, error: activityError } = await supabase
     .from('learning_activities')
-    .insert([{
+    .insert([withUserScope({
       project_id,
       category_id,
       topic_id,
@@ -59,7 +63,7 @@ export async function createActivity({
       duration_minutes,
       source: source || null,
       notes: notes || null,
-    }])
+    }, user.id)])
     .select()
     .single();
 
@@ -68,7 +72,7 @@ export async function createActivity({
   const revisionState = createInitialRevisionState(study_date);
   const { data: newKnowledgeUnit, error: knowledgeUnitError } = await supabase
     .from('knowledge_units')
-    .insert([{
+    .insert([withUserScope({
       activity_id: newActivity.id,
       project_id,
       category_id,
@@ -83,7 +87,7 @@ export async function createActivity({
       revision_stage: revisionState.revision_stage,
       next_review_date: memory_mode === 'REFERENCE' ? null : revisionState.next_review_date,
       last_reviewed_at: revisionState.last_reviewed_at,
-    }])
+    }, user.id)])
     .select()
     .single();
 
@@ -107,11 +111,13 @@ export async function updateActivity(
     notes?: string | null;
   }
 ) {
-  // Update learning activity
+  const user = await ensureAuthenticated();
+
   const { data, error } = await supabase
     .from('learning_activities')
-    .update(updates)
+    .update(withUserScope(updates, user.id))
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -126,8 +132,9 @@ export async function updateActivity(
     
     const { error: kuError } = await supabase
       .from('knowledge_units')
-      .update(kuUpdates)
-      .eq('activity_id', id);
+      .update(withUserScope(kuUpdates, user.id))
+      .eq('activity_id', id)
+      .eq('user_id', user.id);
       
     if (kuError) throw kuError;
   }
@@ -136,10 +143,12 @@ export async function updateActivity(
 }
 
 export async function deleteActivity(id: string) {
+  const user = await ensureAuthenticated();
   const { error } = await supabase
     .from('learning_activities')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
 
   if (error) throw error;
   return true;

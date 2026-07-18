@@ -1,7 +1,9 @@
 import { supabase } from '../lib/supabase';
+import { ensureAuthenticated, withUserScope } from '../lib/auth';
 import type { DailyPlanInsert, DailyPlanWithRelations } from '../types';
 
 export async function getDailyPlan(date: string) {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('daily_plans')
     .select(`
@@ -11,6 +13,7 @@ export async function getDailyPlan(date: string) {
       topics (name)
     `)
     .eq('date', date)
+    .eq('user_id', user.id)
     .order('position', { ascending: true });
 
   if (error) throw error;
@@ -18,9 +21,10 @@ export async function getDailyPlan(date: string) {
 }
 
 export async function createDailyPlan(item: DailyPlanInsert) {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('daily_plans')
-    .insert([item])
+    .insert([withUserScope(item as Record<string, unknown>, user.id)])
     .select(`
       *,
       projects (name),
@@ -34,10 +38,12 @@ export async function createDailyPlan(item: DailyPlanInsert) {
 }
 
 export async function deleteDailyPlan(id: string) {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('daily_plans')
     .delete()
     .eq('id', id)
+    .eq('user_id', user.id)
     .select(`
       *,
       projects (name),

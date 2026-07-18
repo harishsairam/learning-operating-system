@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import {
   getSessions,
   getActiveSession,
@@ -10,14 +11,19 @@ import {
   completeSession,
   cancelSession,
 } from '../api/sessions';
+import { buildUserScopedQueryKey } from '../lib/queryKeys';
+import { useAuthUser } from './useAuthUser';
 import type { MemoryMode } from '../types';
 
 /**
  * Fetch all sessions (for history)
  */
 export function useSessions() {
+  const user = useAuthUser();
+  const queryKey = useMemo(() => buildUserScopedQueryKey(['sessions'], user?.id), [user?.id]);
+
   return useQuery({
-    queryKey: ['sessions'],
+    queryKey,
     queryFn: getSessions,
   });
 }
@@ -26,8 +32,11 @@ export function useSessions() {
  * Fetch active or paused session
  */
 export function useActiveSession() {
+  const user = useAuthUser();
+  const queryKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
+
   return useQuery({
-    queryKey: ['sessions', 'active'],
+    queryKey,
     queryFn: getActiveSession,
     staleTime: 0, // Always fresh for accurate timer
     gcTime: 5 * 60 * 1000, // Keep 5 min in memory
@@ -38,8 +47,11 @@ export function useActiveSession() {
  * Fetch a specific session
  */
 export function useSession(sessionId: string) {
+  const user = useAuthUser();
+  const queryKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'current', sessionId], user?.id), [sessionId, user?.id]);
+
   return useQuery({
-    queryKey: ['sessions', 'current', sessionId],
+    queryKey,
     queryFn: () => getSession(sessionId),
     staleTime: 0, // Always fresh for accurate timer
     gcTime: 5 * 60 * 1000,
@@ -52,6 +64,9 @@ export function useSession(sessionId: string) {
  */
 export function useCreateSession() {
   const queryClient = useQueryClient();
+  const user = useAuthUser();
+  const sessionsKey = useMemo(() => buildUserScopedQueryKey(['sessions'], user?.id), [user?.id]);
+  const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
     mutationFn: ({
@@ -78,9 +93,8 @@ export function useCreateSession() {
         planned_duration_minutes,
       }),
     onSuccess: () => {
-      // Invalidate active session query to refetch
-      queryClient.invalidateQueries({ queryKey: ['sessions', 'active'] });
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: activeKey });
+      queryClient.invalidateQueries({ queryKey: sessionsKey });
     },
   });
 }
@@ -90,16 +104,18 @@ export function useCreateSession() {
  */
 export function usePauseSession() {
   const queryClient = useQueryClient();
+  const user = useAuthUser();
+  const currentKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'current'], user?.id), [user?.id]);
+  const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
     mutationFn: pauseSession,
     onSuccess: (data) => {
-      // Update the session in cache
       queryClient.setQueryData(
-        ['sessions', 'current', data.id],
+        [...currentKey, data.id],
         data
       );
-      queryClient.setQueryData(['sessions', 'active'], data);
+      queryClient.setQueryData(activeKey, data);
     },
   });
 }
@@ -109,15 +125,18 @@ export function usePauseSession() {
  */
 export function useResumeSession() {
   const queryClient = useQueryClient();
+  const user = useAuthUser();
+  const currentKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'current'], user?.id), [user?.id]);
+  const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
     mutationFn: resumeSession,
     onSuccess: (data) => {
       queryClient.setQueryData(
-        ['sessions', 'current', data.id],
+        [...currentKey, data.id],
         data
       );
-      queryClient.setQueryData(['sessions', 'active'], data);
+      queryClient.setQueryData(activeKey, data);
     },
   });
 }
@@ -127,6 +146,9 @@ export function useResumeSession() {
  */
 export function useExtendSession() {
   const queryClient = useQueryClient();
+  const user = useAuthUser();
+  const currentKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'current'], user?.id), [user?.id]);
+  const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
     mutationFn: ({
@@ -138,10 +160,10 @@ export function useExtendSession() {
     }) => extendSession(sessionId, additionalMinutes),
     onSuccess: (data) => {
       queryClient.setQueryData(
-        ['sessions', 'current', data.id],
+        [...currentKey, data.id],
         data
       );
-      queryClient.setQueryData(['sessions', 'active'], data);
+      queryClient.setQueryData(activeKey, data);
     },
   });
 }
@@ -151,6 +173,10 @@ export function useExtendSession() {
  */
 export function useCompleteSession() {
   const queryClient = useQueryClient();
+  const user = useAuthUser();
+  const sessionsKey = useMemo(() => buildUserScopedQueryKey(['sessions'], user?.id), [user?.id]);
+  const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
+  const currentKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'current'], user?.id), [user?.id]);
 
   return useMutation({
     mutationFn: ({
@@ -163,13 +189,12 @@ export function useCompleteSession() {
       notes?: string;
     }) => completeSession(sessionId, reflection, notes),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: sessionsKey });
       queryClient.setQueryData(
-        ['sessions', 'current', data.id],
+        [...currentKey, data.id],
         data
       );
-      // Clear active session
-      queryClient.setQueryData(['sessions', 'active'], null);
+      queryClient.setQueryData(activeKey, null);
     },
   });
 }
@@ -179,12 +204,15 @@ export function useCompleteSession() {
  */
 export function useCancelSession() {
   const queryClient = useQueryClient();
+  const user = useAuthUser();
+  const sessionsKey = useMemo(() => buildUserScopedQueryKey(['sessions'], user?.id), [user?.id]);
+  const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
     mutationFn: cancelSession,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      queryClient.setQueryData(['sessions', 'active'], null);
+      queryClient.invalidateQueries({ queryKey: sessionsKey });
+      queryClient.setQueryData(activeKey, null);
     },
   });
 }

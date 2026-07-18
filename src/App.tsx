@@ -6,6 +6,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
+import { ProtectedRoute, GuestRoute } from './components/auth/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import Categories from './pages/Categories';
@@ -14,6 +15,7 @@ import LearningLog from './pages/LearningLog';
 import TodayRevisions from './pages/TodayRevisions';
 import RevisionSession from './pages/RevisionSession';
 import Sessions from './pages/Sessions';
+import AuthPage from './pages/AuthPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,7 +35,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route element={<AppLayout />}>
+          <Route element={<GuestRoute><AuthPage /></GuestRoute>} path="/login" />
+          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/categories" element={<Categories />} />

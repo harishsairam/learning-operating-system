@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { ensureAuthenticated } from '../lib/auth';
 import { format } from 'date-fns';
 
 export interface DailyAnalytics {
@@ -34,6 +35,7 @@ export interface ProjectMetrics {
  */
 export async function getDailyAnalytics(): Promise<DailyAnalytics> {
   const today = format(new Date(), 'yyyy-MM-dd');
+  const user = await ensureAuthenticated();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -41,7 +43,8 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
   const { data: todayActivities, error: activitiesError } = await supabase
     .from('learning_activities')
     .select('id, project_id, topic_id, duration_minutes')
-    .eq('study_date', today);
+    .eq('study_date', today)
+    .eq('user_id', user.id);
 
   if (activitiesError) throw activitiesError;
 
@@ -65,6 +68,7 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
       .from('projects')
       .select('id, name')
       .eq('id', topProjectId)
+      .eq('user_id', user.id)
       .single();
 
     if (!projectError && projectData) {
@@ -80,6 +84,7 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
   const { data: pendingKUs, error: kuError } = await supabase
     .from('knowledge_units')
     .select('id')
+    .eq('user_id', user.id)
     .not('next_review_date', 'is', null)
     .lte('next_review_date', today);
 
@@ -105,11 +110,13 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
  */
 export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
   const today = format(new Date(), 'yyyy-MM-dd');
+  const user = await ensureAuthenticated();
 
   // Fetch all projects
   const { data: projects, error: projectsError } = await supabase
     .from('projects')
     .select('id, name, created_at')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (projectsError) throw projectsError;
@@ -121,27 +128,31 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
   // Fetch all learning activities with project info
   const { data: activities, error: activitiesError } = await supabase
     .from('learning_activities')
-    .select('id, project_id, duration_minutes, created_at');
+    .select('id, project_id, duration_minutes, created_at')
+    .eq('user_id', user.id);
 
   if (activitiesError) throw activitiesError;
 
   // Fetch all categories to count by project
   const { data: categories, error: categoriesError } = await supabase
     .from('categories')
-    .select('id, project_id');
+    .select('id, project_id')
+    .eq('user_id', user.id);
 
   if (categoriesError) throw categoriesError;
 
   // Fetch all topics to count by project
   const { data: topics, error: topicsError } = await supabase
     .from('topics')
-    .select('id, category_id');
+    .select('id, category_id')
+    .eq('user_id', user.id);
 
   if (topicsError) throw topicsError;
 
   const { data: knowledgeUnits, error: knowledgeUnitsError } = await supabase
     .from('knowledge_units')
-    .select('id, project_id, next_review_date');
+    .select('id, project_id, next_review_date')
+    .eq('user_id', user.id);
 
   if (knowledgeUnitsError) throw knowledgeUnitsError;
 

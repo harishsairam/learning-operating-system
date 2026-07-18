@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import { UserMenu } from '../auth/UserMenu';
 import {
   LayoutDashboard,
   FolderOpen,
@@ -58,13 +59,14 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="p-6">
+      <div className="p-6 space-y-3">
         <Link
           to="/activities"
           className="w-full bg-primary-container text-on-primary py-3 px-4 rounded-lg text-sm font-semibold hover:bg-primary-fixed-dim hover:text-on-primary-fixed-variant transition-colors flex items-center justify-center gap-2 shadow-sm"
         >
           New Session
         </Link>
+        <UserMenu />
       </div>
     </div>
   );

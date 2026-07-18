@@ -12,7 +12,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
+  supabaseAnonKey || 'placeholder',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      flowType: 'pkce',
+    },
+  }
 );
 
 export const SUPABASE_CONFIGURED = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder'));

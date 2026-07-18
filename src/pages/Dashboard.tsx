@@ -89,7 +89,7 @@ export default function Dashboard() {
 
       {/* Active Session Card */}
       {activeSession && (
-        <section className="bg-gradient-to-br from-primary-container/20 to-primary-container/10 border-2 border-primary-container/50 rounded-2xl p-6 md:p-8">
+        <section className="bg-linear-to-br from-primary-container/20 to-primary-container/10 border-2 border-primary-container/50 rounded-2xl p-6 md:p-8">
           <div className="flex items-center justify-between gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">

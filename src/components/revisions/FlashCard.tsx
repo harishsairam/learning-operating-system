@@ -17,7 +17,7 @@ export function FlashCard({ unit, onShowAnswer, isAnswerVisible }: FlashCardProp
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+    <div className="w-full max-w-2xl mx-auto bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-100">
       <div className="p-8 flex-1 flex flex-col items-center justify-center text-center relative">
         
         {/* Categories & Importance */}

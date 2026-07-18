@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { ensureAuthenticated, withUserScope } from '../lib/auth';
 import type { LearningSession, LearningSessionWithRelations, SessionStatus, MemoryMode } from '../types';
 import { format } from 'date-fns';
 
@@ -6,6 +7,7 @@ import { format } from 'date-fns';
  * Fetch all sessions for a project (for history/analytics)
  */
 export async function getSessions(): Promise<LearningSessionWithRelations[]> {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('learning_sessions')
     .select(`
@@ -14,6 +16,7 @@ export async function getSessions(): Promise<LearningSessionWithRelations[]> {
       categories (name),
       projects (name)
     `)
+    .eq('user_id', user.id)
     .order('started_at', { ascending: false });
 
   if (error) throw error;
@@ -24,6 +27,7 @@ export async function getSessions(): Promise<LearningSessionWithRelations[]> {
  * Fetch the active or paused session (if any)
  */
 export async function getActiveSession(): Promise<LearningSessionWithRelations | null> {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('learning_sessions')
     .select(`
@@ -32,6 +36,7 @@ export async function getActiveSession(): Promise<LearningSessionWithRelations |
       categories (name),
       projects (name)
     `)
+    .eq('user_id', user.id)
     .in('status', ['ACTIVE', 'PAUSED'])
     .order('started_at', { ascending: false })
     .limit(1);
@@ -44,6 +49,7 @@ export async function getActiveSession(): Promise<LearningSessionWithRelations |
  * Fetch a specific session by ID
  */
 export async function getSession(sessionId: string): Promise<LearningSessionWithRelations> {
+  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('learning_sessions')
     .select(`
@@ -53,6 +59,7 @@ export async function getSession(sessionId: string): Promise<LearningSessionWith
       projects (name)
     `)
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .single();
 
   if (error) throw error;
@@ -78,10 +85,11 @@ export async function createSession({
   planned_duration_minutes: number;
 }) {
   const now = new Date().toISOString();
+  const user = await ensureAuthenticated();
 
   const { data, error } = await supabase
     .from('learning_sessions')
-    .insert([{
+    .insert([withUserScope({
       project_id,
       category_id,
       topic_id,
@@ -92,7 +100,7 @@ export async function createSession({
       paused_duration_minutes: 0,
       started_at: now,
       status: 'ACTIVE',
-    }])
+    }, user.id)])
     .select()
     .single();
 
@@ -106,6 +114,8 @@ export async function createSession({
 export async function pauseSession(sessionId: string) {
   const now = new Date().toISOString();
 
+  const user = await ensureAuthenticated();
+
   const { data, error } = await supabase
     .from('learning_sessions')
     .update({
@@ -114,6 +124,7 @@ export async function pauseSession(sessionId: string) {
       updated_at: now,
     })
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -128,11 +139,14 @@ export async function pauseSession(sessionId: string) {
 export async function resumeSession(sessionId: string) {
   const now = new Date().toISOString();
 
+  const user = await ensureAuthenticated();
+
   // Get the session to calculate paused duration
   const { data: session, error: fetchError } = await supabase
     .from('learning_sessions')
     .select()
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .single();
 
   if (fetchError) throw fetchError;
@@ -153,6 +167,7 @@ export async function resumeSession(sessionId: string) {
       updated_at: now,
     })
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -168,11 +183,13 @@ export async function extendSession(
   additionalMinutes: number
 ) {
   const now = new Date().toISOString();
+  const user = await ensureAuthenticated();
 
   const { data: session, error: fetchError } = await supabase
     .from('learning_sessions')
     .select()
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .single();
 
   if (fetchError) throw fetchError;
@@ -184,6 +201,7 @@ export async function extendSession(
       updated_at: now,
     })
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -217,12 +235,14 @@ export async function completeSession(
   notes?: string
 ) {
   const now = new Date().toISOString();
+  const user = await ensureAuthenticated();
 
   // Get session to calculate final focused duration
   const { data: session, error: fetchError } = await supabase
     .from('learning_sessions')
     .select()
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .single();
 
   if (fetchError) throw fetchError;
@@ -254,6 +274,7 @@ export async function completeSession(
       updated_at: now,
     })
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -267,6 +288,8 @@ export async function completeSession(
 export async function cancelSession(sessionId: string) {
   const now = new Date().toISOString();
 
+  const user = await ensureAuthenticated();
+
   const { data, error } = await supabase
     .from('learning_sessions')
     .update({
@@ -275,6 +298,7 @@ export async function cancelSession(sessionId: string) {
       updated_at: now,
     })
     .eq('id', sessionId)
+    .eq('user_id', user.id)
     .select()
     .single();
 
