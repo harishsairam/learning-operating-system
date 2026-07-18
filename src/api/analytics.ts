@@ -76,29 +76,26 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
     }
   }
 
-  // Fetch today's revision metrics
-  const { data: revisionsData, error: revisionsError } = await supabase
-    .from('revision_schedule')
-    .select('id, completed, time_spent_minutes, revision_date, completed_at');
+  // Fetch today's revision logs
+  const { data: revisionLogs, error: logsError } = await supabase
+    .from('revision_logs')
+    .select('id, time_spent_seconds, created_at')
+    .gte('created_at', `${today}T00:00:00.000Z`);
 
-  if (revisionsError) throw revisionsError;
+  if (logsError) throw logsError;
 
-  // Calculate revision analytics
-  const allRevisions = revisionsData || [];
-  const completedTodayRevisions = allRevisions.filter(r => 
-    r.completed && 
-    r.completed_at && 
-    new Date(r.completed_at) >= todayStart
-  );
-  
-  const revisionTimeToday = completedTodayRevisions.reduce((sum, r) => sum + (r.time_spent_minutes || 0), 0);
-  const revisionsCompletedToday = completedTodayRevisions.length;
+  // Fetch pending revisions due today
+  const { data: pendingKUs, error: kuError } = await supabase
+    .from('knowledge_units')
+    .select('id')
+    .not('next_review_date', 'is', null)
+    .lte('next_review_date', today);
 
-  // Pending revisions due today or earlier (incomplete)
-  const pendingRevisionsToday = allRevisions.filter(r => 
-    !r.completed && 
-    r.revision_date <= today
-  ).length;
+  if (kuError) throw kuError;
+
+  const revisionTimeToday = (revisionLogs || []).reduce((sum, r) => sum + Math.ceil((r.time_spent_seconds || 0) / 60), 0);
+  const revisionsCompletedToday = (revisionLogs || []).length;
+  const pendingRevisionsToday = (pendingKUs || []).length;
 
   return {
     studyTimeToday,
@@ -151,21 +148,15 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
   if (topicsError) throw topicsError;
 
   // Fetch revision data for time calculation
-  const { data: revisions, error: revisionsError } = await supabase
-    .from('revision_schedule')
-    .select(`
-      id,
-      knowledge_unit_id,
-      time_spent_minutes,
-      completed,
-      revision_date
-    `);
+  const { data: revisionLogs, error: logsError } = await supabase
+    .from('revision_logs')
+    .select('id, knowledge_unit_id, time_spent_seconds');
 
-  if (revisionsError) throw revisionsError;
+  if (logsError) throw logsError;
 
   const { data: knowledgeUnits, error: knowledgeUnitsError } = await supabase
     .from('knowledge_units')
-    .select('id, project_id');
+    .select('id, project_id, next_review_date');
 
   if (knowledgeUnitsError) throw knowledgeUnitsError;
 
@@ -214,16 +205,15 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
       : null;
 
     // Revisions for this project
-    const projectRevisions = (revisions || []).filter(r => 
+    const projectLogs = (revisionLogs || []).filter(r => 
       knowledgeUnitProjectMap.get(r.knowledge_unit_id) === project.id
     );
-    const totalRevisionTime = projectRevisions
-      .filter(r => r.completed && r.time_spent_minutes)
-      .reduce((sum, r) => sum + (r.time_spent_minutes || 0), 0);
+    const totalRevisionTime = projectLogs
+      .reduce((sum, r) => sum + Math.ceil((r.time_spent_seconds || 0) / 60), 0);
 
     // Pending revisions due today or earlier
-    const upcomingPendingRevisions = projectRevisions.filter(r => 
-      !r.completed && r.revision_date <= today
+    const upcomingPendingRevisions = (knowledgeUnits || []).filter(ku => 
+      ku.project_id === project.id && ku.next_review_date && ku.next_review_date <= today
     ).length;
 
     return {

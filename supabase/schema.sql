@@ -1,3 +1,26 @@
+-- ============================================================================
+-- Learning Operating System - Database Schema (Final State)
+-- ============================================================================
+-- 
+-- This file represents the FINAL desired state of the database after all
+-- migrations have been applied. It is organized as follows:
+--
+-- 1. Core Domain Tables: projects, categories, topics
+-- 2. Learning Tracking: learning_activities, knowledge_units, learning_sessions
+-- 3. Revision System: revision_logs (with SRS columns in knowledge_units)
+-- 4. Row Level Security (RLS) policies (created after tables to avoid errors)
+-- 5. Performance indexes
+--
+-- NOTES:
+-- - The legacy revision_schedule table is intentionally removed. It has been
+--   replaced by SRS columns in knowledge_units + revision_logs for detailed logs.
+-- - RPC functions (e.g., delete_learning_log_safe) are created by migrations,
+--   not by this schema file.
+-- - All timestamps use UTC timezone.
+-- - RLS is enabled for MVP with permissive policies (not recommended for production).
+--
+-- ============================================================================
+
 -- Create projects table
 CREATE TABLE projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,20 +76,12 @@ CREATE TABLE knowledge_units (
   confidence TEXT,
   memory_mode TEXT NOT NULL DEFAULT 'MEMORIZE',
   tags TEXT[],
+  srs_ease_factor REAL DEFAULT 2.5 NOT NULL,
+  srs_interval INTEGER DEFAULT 0 NOT NULL,
+  srs_repetitions INTEGER DEFAULT 0 NOT NULL,
+  next_review_date DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-
--- Create revision_schedule table
-CREATE TABLE revision_schedule (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  knowledge_unit_id UUID NOT NULL REFERENCES knowledge_units(id) ON DELETE CASCADE,
-  revision_number INTEGER NOT NULL,
-  revision_date DATE NOT NULL,
-  completed BOOLEAN DEFAULT FALSE NOT NULL,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  completion_status TEXT,
-  time_spent_minutes INTEGER
 );
 
 -- Note: Since there is no user authentication required for Version 1, 
@@ -78,14 +93,13 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_units ENABLE ROW LEVEL SECURITY;
-ALTER TABLE revision_schedule ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all actions on projects" ON projects FOR ALL USING (true);
 CREATE POLICY "Allow all actions on categories" ON categories FOR ALL USING (true);
 CREATE POLICY "Allow all actions on topics" ON topics FOR ALL USING (true);
 CREATE POLICY "Allow all actions on learning_activities" ON learning_activities FOR ALL USING (true);
 CREATE POLICY "Allow all actions on knowledge_units" ON knowledge_units FOR ALL USING (true);
-CREATE POLICY "Allow all actions on revision_schedule" ON revision_schedule FOR ALL USING (true);
+
 -- Performance indexes
 
 CREATE INDEX idx_categories_project_id
@@ -114,15 +128,6 @@ ON knowledge_units(topic_id);
 
 CREATE INDEX idx_knowledge_units_activity_id
 ON knowledge_units(activity_id);
-
-CREATE INDEX idx_revision_schedule_knowledge_unit_id
-ON revision_schedule(knowledge_unit_id);
-
-CREATE INDEX idx_revision_schedule_revision_date
-ON revision_schedule(revision_date);
-
-CREATE INDEX idx_revision_schedule_completed
-ON revision_schedule(completed);
 
 -- Create learning_sessions table
 CREATE TABLE learning_sessions (
@@ -159,11 +164,27 @@ CREATE TABLE learning_sessions (
 );
 
 ALTER TABLE learning_sessions ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Allow all actions on learning_sessions" ON learning_sessions FOR ALL USING (true);
+
+-- Create revision_logs table
+CREATE TABLE revision_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID REFERENCES learning_activities(id) ON DELETE SET NULL,
+  knowledge_unit_id UUID NOT NULL REFERENCES knowledge_units(id) ON DELETE CASCADE,
+  quality INTEGER NOT NULL,
+  time_spent_seconds INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+ALTER TABLE revision_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all actions on revision_logs" ON revision_logs FOR ALL USING (true);
 
 -- Indexes for learning_sessions
 CREATE INDEX idx_learning_sessions_project_id ON learning_sessions(project_id);
 CREATE INDEX idx_learning_sessions_topic_id ON learning_sessions(topic_id);
 CREATE INDEX idx_learning_sessions_status ON learning_sessions(status);
 CREATE INDEX idx_learning_sessions_started_at ON learning_sessions(started_at);
+
+-- Indexes for revision_logs
+CREATE INDEX idx_revision_logs_activity_id ON revision_logs(activity_id);
+CREATE INDEX idx_revision_logs_knowledge_unit_id ON revision_logs(knowledge_unit_id);

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useActivities, useCreateActivity } from '../hooks/useActivities';
+import { useActivities, useCreateActivity, useUpdateActivity } from '../hooks/useActivities';
 import { useProjects, useCreateProject } from '../hooks/useProjects';
 import { useCategories, useCreateCategory } from '../hooks/useCategories';
 import { useTopics, useCreateTopic } from '../hooks/useTopics';
@@ -9,7 +9,10 @@ import { BookOpen, Clock, Link as LinkIcon, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { InlineCreateModal } from '../components/ui/InlineCreateModal';
-import type { MemoryMode } from '../types';
+import { RevisionSetupDialog } from '../components/revisions/RevisionSetupDialog';
+import { DeleteActivityDialog } from '../components/ui/DeleteActivityDialog';
+import { CheckCircle2, Edit2, Trash2 } from 'lucide-react';
+import type { MemoryMode, LearningActivity } from '../types';
 
 export default function LearningLog() {
   const navigate = useNavigate();
@@ -19,6 +22,7 @@ export default function LearningLog() {
   const { data: topics, isLoading: loadingTopics } = useTopics();
   
   const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
   const createProject = useCreateProject();
   const createCategory = useCreateCategory();
   const createTopic = useCreateTopic();
@@ -38,10 +42,19 @@ export default function LearningLog() {
   const [duration, setDuration] = useState('30');
   const [source, setSource] = useState('');
   const [notes, setNotes] = useState('');
+  
+  // Edit & Delete state
+  const [editingActivity, setEditingActivity] = useState<LearningActivity | null>(null);
+  const [activityToDelete, setActivityToDelete] = useState<LearningActivity | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   // Start Session mode (new)
   const [isStartingSession, setIsStartingSession] = useState(false);
   const [plannedDuration, setPlannedDuration] = useState('30');
+
+  // Success state (new)
+  const [savedActivityId, setSavedActivityId] = useState<string | null>(null);
+  const [isRevisionSetupOpen, setIsRevisionSetupOpen] = useState(false);
 
   // Modals state
   const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
@@ -67,37 +80,77 @@ export default function LearningLog() {
     setTopicId('');
     setActivityType('Study');
     setMemoryMode('MEMORIZE');
+    setEditingActivity(null);
   };
 
-  const handleCreateActivity = (e: React.FormEvent) => {
+  const handleEditClick = (activity: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingActivity(activity);
+    setProjectId(activity.project_id);
+    setCategoryId(activity.category_id);
+    setTopicId(activity.topic_id);
+    setActivityType(activity.activity_type || 'Study');
+    // We assume MEMORIZE as default if memory_mode is not available on the activity view, 
+    // although the db migration sets it. Let's try to grab it from ku if possible, or fallback.
+    setMemoryMode(activity.memory_mode || 'MEMORIZE');
+    setStudyDate(activity.study_date);
+    setStartTime(activity.start_time || '00:00');
+    setDuration(activity.duration_minutes?.toString() || '30');
+    setSource(activity.source || '');
+    setNotes(activity.notes || '');
+    setIsLoggingActivity(true);
+  };
+
+  const handleDeleteClick = (activity: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActivityToDelete(activity);
+    setDeleteModalOpen(true);
+  };
+
+  const handleSaveActivity = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !categoryId || !topicId || !studyDate || !startTime || !duration) return;
 
-    createActivity.mutate(
-      {
-        project_id: projectId,
-        category_id: categoryId,
-        topic_id: topicId,
-        activity_type: activityType,
-        memory_mode: memoryMode,
-        study_date: studyDate,
-        start_time: startTime,
-        duration_minutes: parseInt(duration),
-        source: source.trim() || undefined,
-        notes: notes.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          setIsLoggingActivity(false);
-          resetFormFields();
-          setStudyDate(format(new Date(), 'yyyy-MM-dd'));
-          setStartTime(format(new Date(), 'HH:mm'));
-          setDuration('30');
-          setSource('');
-          setNotes('');
-        },
-      }
-    );
+    const payload = {
+      project_id: projectId,
+      category_id: categoryId,
+      topic_id: topicId,
+      activity_type: activityType,
+      memory_mode: memoryMode,
+      study_date: studyDate,
+      start_time: startTime,
+      duration_minutes: parseInt(duration),
+      source: source.trim() || undefined,
+      notes: notes.trim() || undefined,
+    };
+
+    if (editingActivity) {
+      updateActivity.mutate(
+        { id: editingActivity.id, updates: payload },
+        {
+          onSuccess: () => {
+            setIsLoggingActivity(false);
+            resetFormFields();
+          }
+        }
+      );
+    } else {
+      createActivity.mutate(
+        payload,
+        {
+          onSuccess: (data) => {
+            setIsLoggingActivity(false);
+            setSavedActivityId(data.id);
+            resetFormFields();
+            setStudyDate(format(new Date(), 'yyyy-MM-dd'));
+            setStartTime(format(new Date(), 'HH:mm'));
+            setDuration('30');
+            setSource('');
+            setNotes('');
+          },
+        }
+      );
+    }
   };
 
   const handleStartSession = async (e: React.FormEvent) => {
@@ -181,7 +234,7 @@ export default function LearningLog() {
             </button>
           )}
           <h1 className="font-display text-4xl font-bold text-on-surface mb-2 tracking-tight">
-            {isLoggingActivity ? 'Log Learning' : isStartingSession ? 'Start Session' : 'Learning Log'}
+            {isLoggingActivity ? (editingActivity ? 'Edit Learning Log' : 'Log Learning') : isStartingSession ? 'Start Session' : 'Learning Log'}
           </h1>
           <p className="text-lg text-secondary">
             {isLoggingActivity 
@@ -217,9 +270,31 @@ export default function LearningLog() {
         )}
       </div>
 
-      {isLoggingActivity ? (
+      {savedActivityId && !isLoggingActivity && !isStartingSession ? (
+        <div className="max-w-3xl bg-surface-container-lowest border border-outline-variant rounded-xl p-8 md:p-12 shadow-sm text-center animate-in fade-in zoom-in duration-300">
+          <div className="w-20 h-20 bg-primary-container/20 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
+          <h2 className="font-display text-3xl font-bold text-on-surface mb-3">Learning Log Saved!</h2>
+          <p className="text-secondary mb-8">Your activity has been recorded. Setting up active recall questions now ensures you never forget this topic.</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={() => setSavedActivityId(null)}
+              className="px-6 py-3 rounded-lg text-sm font-semibold text-secondary hover:bg-surface-container-high transition-colors w-full sm:w-auto"
+            >
+              Skip
+            </button>
+            <button
+              onClick={() => setIsRevisionSetupOpen(true)}
+              className="px-6 py-3 bg-primary text-on-primary rounded-lg text-sm font-bold hover:bg-primary-fixed-dim transition-colors shadow-sm w-full sm:w-auto"
+            >
+              Create Revision Set
+            </button>
+          </div>
+        </div>
+      ) : isLoggingActivity ? (
         <div className="max-w-3xl bg-surface-container-lowest border border-outline-variant rounded-xl p-6 md:p-10 shadow-sm">
-          <form onSubmit={handleCreateActivity} className="space-y-8">
+          <form onSubmit={handleSaveActivity} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div className="flex flex-col gap-2">
@@ -396,10 +471,10 @@ export default function LearningLog() {
               </button>
               <button
                 type="submit"
-                disabled={createActivity.isPending}
+                disabled={createActivity.isPending || updateActivity.isPending}
                 className="px-6 py-3 rounded-lg text-sm font-semibold text-on-primary bg-primary-container hover:bg-primary-fixed-dim hover:text-on-primary-fixed-variant transition-colors shadow-sm disabled:opacity-50"
               >
-                Save
+                {editingActivity ? 'Update' : 'Save'}
               </button>
             </div>
           </form>
@@ -564,13 +639,43 @@ export default function LearningLog() {
           ) : (
             activities?.map((activity: any) => (
               <div key={activity.id} className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl anti-gravity-hover flex flex-col justify-between group cursor-pointer">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-primary-container/10 rounded-lg flex items-center justify-center text-primary-container shrink-0">
-                    <BookOpen className="w-6 h-6" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary-container/10 rounded-lg flex items-center justify-center text-primary-container shrink-0">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-on-surface mb-1">{activity.topics?.name || 'Topic'}</h4>
+                      <p className="text-sm text-secondary">{activity.duration_minutes} mins • {activity.activity_type || 'Study'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-base font-semibold text-on-surface mb-1">{activity.topics?.name || 'Topic'}</h4>
-                    <p className="text-sm text-secondary">{activity.duration_minutes} mins • {activity.activity_type || 'Study'}</p>
+                  
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSavedActivityId(activity.id);
+                        setIsRevisionSetupOpen(true);
+                      }}
+                      className="p-2 text-secondary hover:text-primary hover:bg-primary-container/10 rounded-lg transition-colors"
+                      title="Edit Revisions"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => handleEditClick(activity, e)}
+                      className="p-2 text-secondary hover:text-primary hover:bg-primary-container/10 rounded-lg transition-colors"
+                      title="Edit Activity"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteClick(activity, e)}
+                      className="p-2 text-secondary hover:text-error hover:bg-error-container/10 rounded-lg transition-colors"
+                      title="Delete Activity"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
                 <div className="text-xs text-secondary mt-auto border-t border-outline-variant/50 pt-4 flex justify-between items-center">
@@ -611,6 +716,24 @@ export default function LearningLog() {
         initialValue={createTopicInitialValue}
         onSubmit={handleCreateTopic}
         isLoading={createTopic.isPending}
+      />
+
+      <RevisionSetupDialog
+        isOpen={isRevisionSetupOpen}
+        onClose={() => {
+          setIsRevisionSetupOpen(false);
+          setSavedActivityId(null);
+        }}
+        activityId={savedActivityId}
+      />
+
+      <DeleteActivityDialog
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setActivityToDelete(null);
+        }}
+        activity={activityToDelete}
       />
     </div>
   );

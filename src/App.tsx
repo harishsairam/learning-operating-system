@@ -12,6 +12,7 @@ import Categories from './pages/Categories';
 import Topics from './pages/Topics';
 import LearningLog from './pages/LearningLog';
 import TodayRevisions from './pages/TodayRevisions';
+import RevisionSession from './pages/RevisionSession';
 import Sessions from './pages/Sessions';
 
 const queryClient = new QueryClient({
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/topics" element={<Topics />} />
             <Route path="/activities" element={<LearningLog />} />
             <Route path="/revisions" element={<TodayRevisions />} />
+            <Route path="/revisions/session" element={<RevisionSession />} />
             <Route path="/sessions/:sessionId" element={<Sessions />} />
           </Route>
         </Routes>

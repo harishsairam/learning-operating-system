@@ -134,6 +134,10 @@ export interface Database {
           confidence: string | null
           memory_mode: string
           tags: string[] | null
+          srs_ease_factor: number
+          srs_interval: number
+          srs_repetitions: number
+          next_review_date: string | null
           created_at: string
           updated_at: string
         }
@@ -150,6 +154,10 @@ export interface Database {
           confidence?: string | null
           memory_mode?: string
           tags?: string[] | null
+          srs_ease_factor?: number
+          srs_interval?: number
+          srs_repetitions?: number
+          next_review_date?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -166,42 +174,41 @@ export interface Database {
           confidence?: string | null
           memory_mode?: string
           tags?: string[] | null
+          srs_ease_factor?: number
+          srs_interval?: number
+          srs_repetitions?: number
+          next_review_date?: string | null
           created_at?: string
           updated_at?: string
         }
       }
-      revision_schedule: {
+      revision_logs: {
         Row: {
           id: string
+          activity_id: string
           knowledge_unit_id: string
-          revision_number: number
-          revision_date: string
-          completed: boolean
-          completed_at: string | null
-          completion_status: string | null
-          time_spent_minutes: number | null
+          quality: number
+          time_spent_seconds: number | null
+          created_at: string
         }
         Insert: {
           id?: string
+          activity_id: string
           knowledge_unit_id: string
-          revision_number: number
-          revision_date: string
-          completed?: boolean
-          completed_at?: string | null
-          completion_status?: string | null
-          time_spent_minutes?: number | null
+          quality: number
+          time_spent_seconds?: number | null
+          created_at?: string
         }
         Update: {
           id?: string
+          activity_id?: string
           knowledge_unit_id?: string
-          revision_number?: number
-          revision_date?: string
-          completed?: boolean
-          completed_at?: string | null
-          completion_status?: string | null
-          time_spent_minutes?: number | null
+          quality?: number
+          time_spent_seconds?: number | null
+          created_at?: string
         }
       }
+
       learning_sessions: {
         Row: {
           id: string
@@ -284,8 +291,10 @@ export type Project = Database['public']['Tables']['projects']['Row'];
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Topic = Database['public']['Tables']['topics']['Row'];
 export type LearningActivity = Database['public']['Tables']['learning_activities']['Row'];
-export type RevisionSchedule = Database['public']['Tables']['revision_schedule']['Row'];
+
 export type LearningSession = Database['public']['Tables']['learning_sessions']['Row'];
+export type RevisionLog = Database['public']['Tables']['revision_logs']['Row'];
+export type KnowledgeUnit = Database['public']['Tables']['knowledge_units']['Row'];
 
 /**
  * LearningSession with optional related data (used when fetching with joins)

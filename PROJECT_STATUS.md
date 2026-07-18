@@ -1,45 +1,138 @@
 # Project Status: Learning Operating System (Second Brain)
 
-## Overview
-The application is evolving from a basic study session tracker into a comprehensive "Learning Operating System". The core architecture has been refactored to support flexible "Learning Activities" rather than just fixed study sessions. The knowledge capture workflow has been significantly enhanced to minimize friction.
+**Last Updated**: July 18, 2026  
+**Current Version**: 0.1.0  
+**Status**: MVP / Beta - Core features implemented and functional
 
-## Current State & Architecture
-- **Tech Stack**: React 18, TypeScript, Vite, Tailwind CSS, React Query, Lucide Icons.
-- **Database**: Integrated with Supabase, leveraging a relational schema defined in `supabase/schema.sql`.
-- **UI Architecture**: Client-side Single Page Application (SPA) with a consistent, minimalist design language (neutral surface colors, primary accents, consistent spacing).
-- **Core Entities**:
-  - `projects`: High-level domains (e.g., "Computer Science").
-  - `categories`: Sub-domains within projects (e.g., "Algorithms").
-  - `topics`: Specific subjects (e.g., "Dynamic Programming").
-  - `learning_activities`: The central hub recording learning interactions (replaces `study_sessions`).
-  - `revision_schedule`: Spaced repetition intervals generated from activities.
+## Project Overview
+A comprehensive "Learning Operating System" designed to track learning interactions, manage hierarchical knowledge domains (Projects → Categories → Topics), and implement spaced repetition for effective knowledge retention. The system minimizes friction in knowledge capture through streamlined UI/UX and robust database integration.
 
-## Recent Architectural Changes
-1. **Introduction of "Learning Activity"**:
-   - Replaced "Study Session" with a more extensible "Learning Activity" model.
-   - Database schema and types (`LearningActivity`) now include an `activity_type` field (currently defaulting to "Study").
-   - Added `start_time` to track exactly when an activity occurred.
-   - Decoupled relationships: `learning_activities` now directly link to `project_id`, `category_id`, and `topic_id` for flatter, more scalable querying.
+## ✅ Completed Features
 
-2. **Streamlined Knowledge Capture Workflow**:
-   - The "Learning Log" is now the primary interaction point.
-   - Users can create Projects, Categories, and Topics directly from within the Learning Log form using a custom `SearchableSelect` component and `InlineCreateModal`.
-   - This eliminates navigation friction, ensuring users never have to leave the page to capture knowledge.
+### Core Functionality
+- **Dashboard** - Central hub displaying activity streaks, upcoming revisions, and daily metrics
+- **Learning Log** - Primary knowledge capture interface with inline entity creation (Projects/Categories/Topics)
+- **Timeline** - Chronological view of all recorded learning activities
+- **Hierarchical Knowledge Management** - Projects → Categories → Topics organization
+- **Spaced Repetition System** - Automated revision schedule generation via SRS algorithm
+- **Daily Planning** - Daily command center with session planning and revision controls
+- **Session Recovery** - Resume active learning sessions from dashboard
 
-3. **UI Component Refactoring**:
-   - Separated UI components from business logic.
-   - Built reusable `SearchableSelect` and `InlineCreateModal` components that can be leveraged across the application for seamless data entry.
-   - Updated the Dashboard and Timeline to reflect "Learning Activities" instead of "Study Sessions", using icons and metadata (like duration, start time, type) to prepare for multiple activity types (e.g., Revision, PYQ Practice).
+### Technical Implementation
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Database**: Supabase (PostgreSQL) with 15+ migrations completed
+- **State Management**: TanStack Query for server state + React hooks for local state
+- **Type Safety**: Full TypeScript integration across API, components, and types
+- **Reusable Components**: `SearchableSelect`, `InlineCreateModal`, `EntitySelector`
 
-## Future Roadmap & Prepared Architecture
-- **Extensible Activity Types**: The `activity_type` field in the database is ready to support "Revision", "PYQ Practice", "Mock Test", "Video Lecture", "Reading", etc., without schema changes. The UI will later be updated to allow selection of these types.
-- **Knowledge Units / Hubs**: The `Topic` entity is structurally prepared to evolve into a "Knowledge Hub". Future features like Notes, Revision History, Flashcards, and Mind Maps will be attached to the `topic_id`.
-- **Database Migration**: The application has been fully migrated from a local mock to a live Supabase backend. The `supabase/schema.sql` file is fully synchronized with the `src/types/index.ts` models.
+### Database Schema
+- `projects` - Top-level learning domains
+- `categories` - Sub-domains within projects
+- `topics` - Specific subjects for deep learning
+- `learning_activities` - Core event logging (study duration, source, notes, type)
+- `revision_schedule` - SRS-based review intervals
+- `daily_plans` - Daily learning planning and priorities
+- `learning_sessions` - Extended session tracking
+- `revision_logs` - Detailed revision attempt history
 
-## Known Constraints (Intentional Exclusions for V1)
-- No AI or LLM integrations.
-- No User Authentication.
-- No Global Search.
-- No Calendar / Notifications.
-- No Flashcards / Mind Maps implementation.
-- No external attachments or complex analytics.
+### API Layer
+Complete async API services implemented for:
+- Activities (CRUD operations)
+- Categories (CRUD operations)
+- Daily Plans (CRUD operations)
+- Knowledge Units (CRUD operations)
+- Projects (CRUD operations)
+- Revisions (CRUD operations)
+- Sessions (CRUD operations)
+- Topics (CRUD operations)
+- Analytics (daily and project-level)
+
+## 🏗️ Architecture Highlights
+
+### Learning Activity Model
+- Flexible `activity_type` field (currently: Study) ready for expansion (Revision, PYQ Practice, Video Lecture, etc.)
+- Direct relationships to project/category/topic for scalable querying
+- `start_time` tracking for precise temporal data
+
+### Knowledge Capture Optimization
+- Users can create Projects/Categories/Topics inline without leaving the Learning Log
+- Searchable dropdowns with type-ahead filtering
+- Modal-based creation flow maintaining form context
+
+### Pages/Routes Implemented
+- `/` - Dashboard
+- `/log` - Learning Log
+- `/timeline` - Timeline
+- `/topics` - Topics Management
+- `/categories` - Categories Management
+- `/projects` - Projects Management
+- `/sessions` - Session History
+- `/revisions` - Revision Management
+- `/today` - Today's Revisions
+
+## 📋 Database Migration History
+Successfully completed 15+ migrations:
+- Core schema creation and daily plans
+- Knowledge units table creation
+- SRS column additions to knowledge units
+- Revision logs implementation
+- Learning sessions table
+- Safe data migration procedures
+- Learning activity memory mode support
+
+## 🔮 Future Roadmap (Prepared Architecture)
+
+### Extensible Activity Types
+- Revision sessions with detailed recall metrics
+- PYQ (Previous Year Questions) Practice
+- Mock Tests with scoring
+- Video Lecture tracking
+- Reading sessions with comprehension checkpoints
+
+### Knowledge Hub Evolution
+- Flashcard system per Topic
+- Structured note-taking interface
+- Knowledge graph visualization
+- Mind maps for conceptual mapping
+- Revision history analytics
+
+### Advanced Features (Post-MVP)
+- Global search across notes and topics
+- AI-powered summaries and insights
+- Notification system for revision reminders
+- Calendar integration with learning schedule
+- Export capabilities (PDF, Markdown)
+- Collaborative learning features
+
+## ⚠️ Known Limitations (Intentional Exclusions for V1)
+- No user authentication (single-user mode)
+- No AI/LLM integrations
+- No global search
+- No calendar/notification system
+- No flashcard implementation
+- No mind maps
+- No external file attachments
+- No complex analytics/reporting
+
+## 🔧 Technical Debt & Next Steps
+1. **Error Handling**: Enhance Supabase edge case error handling in API services
+2. **Type Safety**: Remove remaining `any` types from UI components
+3. **Performance**: Implement caching strategies for frequently accessed queries
+4. **Testing**: Expand unit and integration test coverage
+5. **Flashcard Implementation**: High priority for V0.2
+6. **Activity Type Selection**: UI for selecting activity types during logging
+
+## 📊 Code Organization
+- `/src/api` - Supabase API service layer
+- `/src/components` - Reusable React components organized by domain
+- `/src/hooks` - Custom React hooks for business logic
+- `/src/pages` - Route-based page components
+- `/src/lib` - Utility functions (SRS algorithm, Supabase client, helpers)
+- `/src/types` - TypeScript type definitions
+- `/supabase/migrations` - Versioned database migrations
+
+## 🎯 Development Status
+**Core MVP**: ✅ Complete and functional  
+**Testing**: 🟡 Partial coverage  
+**Documentation**: 🟡 In progress (architecture and decisions documented)  
+**Production Ready**: 🟡 Not yet - requires auth implementation and performance optimization

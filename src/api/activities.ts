@@ -23,24 +23,6 @@ export async function getActivities() {
   return data;
 }
 
-/**
- * Maps a memory mode to the revision intervals (in days) after the initial study session.
- * Returns an empty array for REFERENCE mode (no revisions).
- */
-function getRevisionIntervals(memoryMode: MemoryMode): number[] {
-  switch (memoryMode) {
-    case 'REFERENCE':
-      return [];
-    case 'LEARN_ONCE':
-      return [1];
-    case 'MEMORIZE':
-      return [1, 3, 7, 15, 30];
-    case 'MASTER':
-      return [1, 3, 7, 15, 30, 60, 90, 180, 365];
-    default:
-      return [1, 3, 7, 15, 30]; // fallback to MEMORIZE
-  }
-}
 
 export async function createActivity({
   project_id,
@@ -97,6 +79,10 @@ export async function createActivity({
       importance: null,
       confidence: null,
       tags: null,
+      srs_ease_factor: 2.5,
+      srs_interval: memory_mode === 'REFERENCE' ? 0 : 1,
+      srs_repetitions: 0,
+      next_review_date: memory_mode === 'REFERENCE' ? null : format(addDays(new Date(study_date), 1), 'yyyy-MM-dd')
     }])
     .select()
     .single();
@@ -104,31 +90,57 @@ export async function createActivity({
   if (knowledgeUnitError) throw knowledgeUnitError;
   if (!newKnowledgeUnit) throw new Error('Failed to create knowledge unit for activity');
 
-  const revisionIntervals = getRevisionIntervals(memory_mode as MemoryMode);
+  return newActivity as LearningActivity;
+}
 
-  if (revisionIntervals.length === 0) {
-    // REFERENCE mode: no revisions needed
-    return newActivity as LearningActivity;
+export async function updateActivity(
+  id: string,
+  updates: {
+    project_id?: string;
+    category_id?: string;
+    topic_id?: string;
+    activity_type?: string;
+    study_date?: string;
+    start_time?: string;
+    duration_minutes?: number;
+    source?: string | null;
+    notes?: string | null;
+  }
+) {
+  // Update learning activity
+  const { data, error } = await supabase
+    .from('learning_activities')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Also update foreign keys in linked knowledge units to maintain referential integrity
+  if (updates.project_id || updates.category_id || updates.topic_id) {
+    const kuUpdates: any = {};
+    if (updates.project_id) kuUpdates.project_id = updates.project_id;
+    if (updates.category_id) kuUpdates.category_id = updates.category_id;
+    if (updates.topic_id) kuUpdates.topic_id = updates.topic_id;
+    
+    const { error: kuError } = await supabase
+      .from('knowledge_units')
+      .update(kuUpdates)
+      .eq('activity_id', id);
+      
+    if (kuError) throw kuError;
   }
 
-  const sessionDate = new Date(study_date);
+  return data as LearningActivity;
+}
 
-  const revisions = revisionIntervals.map((days, index) => {
-    const revisionDate = addDays(sessionDate, days);
-    return {
-      knowledge_unit_id: newKnowledgeUnit.id,
-      revision_number: index + 1,
-      revision_date: format(revisionDate, 'yyyy-MM-dd'),
-      completed: false,
-      completed_at: null,
-    };
+export async function deleteActivity(id: string, mode: number) {
+  const { error } = await supabase.rpc('delete_learning_log_safe', {
+    p_activity_id: id,
+    p_mode: mode
   });
 
-  const { error: revisionsError } = await supabase
-    .from('revision_schedule')
-    .insert(revisions);
-
-  if (revisionsError) throw revisionsError;
-
-  return newActivity as LearningActivity;
+  if (error) throw error;
+  return true;
 }

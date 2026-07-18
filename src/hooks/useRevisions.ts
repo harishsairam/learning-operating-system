@@ -1,10 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTodayRevisions, completeRevision, getUpcomingRevisions, skipRevision, rescheduleRevision, getTodayCompletedRevisions } from '../api/revisions';
+import { getDueRevisions, submitRevisionSession, getUpcomingRevisions, getRevisionStats } from '../api/revisions';
 
-export function useTodayRevisions() {
+export function useRevisionStats() {
   return useQuery({
-    queryKey: ['revisions', 'today'],
-    queryFn: getTodayRevisions,
+    queryKey: ['revision_stats'],
+    queryFn: getRevisionStats,
+  });
+}
+
+export function useDueRevisions() {
+  return useQuery({
+    queryKey: ['revisions', 'due'],
+    queryFn: getDueRevisions,
   });
 }
 
@@ -15,44 +22,14 @@ export function useUpcomingRevisions() {
   });
 }
 
-export function useTodayCompletedRevisions() {
-  return useQuery({
-    queryKey: ['revisions', 'completed', 'today'],
-    queryFn: getTodayCompletedRevisions,
-  });
-}
-
-export function useCompleteRevision() {
+export function useSubmitRevisionSession() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: completeRevision,
+    mutationFn: submitRevisionSession,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['revisions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    },
-  });
-}
-
-export function useSkipRevision() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: skipRevision,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['revisions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    },
-  });
-}
-
-export function useRescheduleRevision() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: rescheduleRevision,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['revisions'] });
+      queryClient.invalidateQueries({ queryKey: ['activities'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
