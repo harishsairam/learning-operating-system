@@ -304,6 +304,7 @@ export function TodayPlan() {
 
     try {
       await deleteDailyPlan.mutateAsync(item.id);
+      setLocalItems((currentItems) => currentItems.filter((currentItem) => currentItem.id !== item.id));
       setRemovingId(null);
     } catch (error) {
       setRemovingId(null);
