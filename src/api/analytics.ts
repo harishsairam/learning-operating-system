@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated } from '../lib/auth';
 import { format } from 'date-fns';
 
 export interface DailyAnalytics {
@@ -33,18 +32,16 @@ export interface ProjectMetrics {
 /**
  * Fetches analytics for the current day
  */
-export async function getDailyAnalytics(): Promise<DailyAnalytics> {
+export async function getDailyAnalytics(userId: string): Promise<DailyAnalytics> {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const user = await ensureAuthenticated();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  // Fetch today's learning activities
   const { data: todayActivities, error: activitiesError } = await supabase
     .from('learning_activities')
     .select('id, project_id, topic_id, duration_minutes')
     .eq('study_date', today)
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (activitiesError) throw activitiesError;
 
@@ -68,7 +65,7 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
       .from('projects')
       .select('id, name')
       .eq('id', topProjectId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (!projectError && projectData) {
@@ -84,7 +81,7 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
   const { data: pendingKUs, error: kuError } = await supabase
     .from('knowledge_units')
     .select('id')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .not('next_review_date', 'is', null)
     .lte('next_review_date', today);
 
@@ -108,15 +105,13 @@ export async function getDailyAnalytics(): Promise<DailyAnalytics> {
 /**
  * Fetches analytics for all projects
  */
-export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
+export async function getProjectsAnalytics(userId: string): Promise<ProjectMetrics[]> {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const user = await ensureAuthenticated();
 
-  // Fetch all projects
   const { data: projects, error: projectsError } = await supabase
     .from('projects')
     .select('id, name, created_at')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (projectsError) throw projectsError;
@@ -129,7 +124,7 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
   const { data: activities, error: activitiesError } = await supabase
     .from('learning_activities')
     .select('id, project_id, duration_minutes, created_at')
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (activitiesError) throw activitiesError;
 
@@ -137,7 +132,7 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
   const { data: categories, error: categoriesError } = await supabase
     .from('categories')
     .select('id, project_id')
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (categoriesError) throw categoriesError;
 
@@ -145,14 +140,14 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
   const { data: topics, error: topicsError } = await supabase
     .from('topics')
     .select('id, category_id')
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (topicsError) throw topicsError;
 
   const { data: knowledgeUnits, error: knowledgeUnitsError } = await supabase
     .from('knowledge_units')
     .select('id, project_id, next_review_date')
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (knowledgeUnitsError) throw knowledgeUnitsError;
 
@@ -229,7 +224,7 @@ export async function getProjectsAnalytics(): Promise<ProjectMetrics[]> {
 /**
  * Fetches analytics for a single project (for future use)
  */
-export async function getProjectAnalytics(projectId: string): Promise<ProjectMetrics | null> {
-  const metrics = await getProjectsAnalytics();
+export async function getProjectAnalytics(userId: string, projectId: string): Promise<ProjectMetrics | null> {
+  const metrics = await getProjectsAnalytics(userId);
   return metrics.find(m => m.id === projectId) || null;
 }

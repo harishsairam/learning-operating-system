@@ -1,11 +1,9 @@
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated } from '../lib/auth';
 import { format } from 'date-fns';
 import { calculateNextReviewDate } from '../lib/revisions';
 
-export async function getDueRevisions() {
+export async function getDueRevisions(userId: string) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const user = await ensureAuthenticated();
 
   const { data, error } = await supabase
     .from('knowledge_units')
@@ -21,7 +19,7 @@ export async function getDueRevisions() {
         )
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .not('next_review_date', 'is', null)
     .lte('next_review_date', today)
     .order('next_review_date', { ascending: true });
@@ -30,14 +28,13 @@ export async function getDueRevisions() {
   return data;
 }
 
-export async function getRevisionStats() {
+export async function getRevisionStats(userId: string) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const user = await ensureAuthenticated();
 
   const { count: dueTodayCount, error: dueError } = await supabase
     .from('knowledge_units')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .not('next_review_date', 'is', null)
     .eq('next_review_date', today);
   if (dueError) throw dueError;
@@ -45,7 +42,7 @@ export async function getRevisionStats() {
   const { count: overdueCount, error: overdueError } = await supabase
     .from('knowledge_units')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .not('next_review_date', 'is', null)
     .lt('next_review_date', today);
   if (overdueError) throw overdueError;
@@ -53,7 +50,7 @@ export async function getRevisionStats() {
   const { count: upcomingCount, error: upcomingError } = await supabase
     .from('knowledge_units')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .not('next_review_date', 'is', null)
     .gt('next_review_date', today);
   if (upcomingError) throw upcomingError;
@@ -67,9 +64,8 @@ export async function getRevisionStats() {
   };
 }
 
-export async function getUpcomingRevisions() {
+export async function getUpcomingRevisions(userId: string) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const user = await ensureAuthenticated();
 
   const { data, error } = await supabase
     .from('knowledge_units')
@@ -85,7 +81,7 @@ export async function getUpcomingRevisions() {
         )
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .not('next_review_date', 'is', null)
     .gt('next_review_date', today)
     .order('next_review_date', { ascending: true })
@@ -95,15 +91,14 @@ export async function getUpcomingRevisions() {
   return data;
 }
 
-export async function submitRevisionSession({ knowledgeUnitId }: { knowledgeUnitId: string }) {
+export async function submitRevisionSession(userId: string, { knowledgeUnitId }: { knowledgeUnitId: string }) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const user = await ensureAuthenticated();
 
   const { data: currentUnit, error: fetchError } = await supabase
     .from('knowledge_units')
     .select('revision_stage, next_review_date, last_reviewed_at')
     .eq('id', knowledgeUnitId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single();
 
   if (fetchError) throw fetchError;
@@ -119,7 +114,7 @@ export async function submitRevisionSession({ knowledgeUnitId }: { knowledgeUnit
       next_review_date: format(nextReviewDate, 'yyyy-MM-dd'),
     })
     .eq('id', knowledgeUnitId)
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (updateError) throw updateError;
 }

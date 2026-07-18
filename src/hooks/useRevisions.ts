@@ -10,7 +10,8 @@ export function useRevisionStats() {
 
   return useQuery({
     queryKey,
-    queryFn: getRevisionStats,
+    queryFn: () => getRevisionStats(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -20,7 +21,8 @@ export function useDueRevisions() {
 
   return useQuery({
     queryKey,
-    queryFn: getDueRevisions,
+    queryFn: () => getDueRevisions(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -30,7 +32,8 @@ export function useUpcomingRevisions() {
 
   return useQuery({
     queryKey,
-    queryFn: getUpcomingRevisions,
+    queryFn: () => getUpcomingRevisions(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -42,7 +45,8 @@ export function useSubmitRevisionSession() {
   const dashboardKey = useMemo(() => buildUserScopedQueryKey(['dashboard'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: submitRevisionSession,
+    mutationFn: ({ knowledgeUnitId }: { knowledgeUnitId: string }) =>
+      submitRevisionSession(user!.id, { knowledgeUnitId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: revisionsKey });
       queryClient.invalidateQueries({ queryKey: activitiesKey });

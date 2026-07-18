@@ -1,34 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { useAuthStatus } from '../../contexts/AuthContext';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function initAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (isMounted) {
-        setStatus(session ? 'authenticated' : 'unauthenticated');
-      }
-    }
-
-    void initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) {
-        setStatus(session ? 'authenticated' : 'unauthenticated');
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const status = useAuthStatus();
 
   if (status === 'loading') {
     return (
@@ -47,31 +23,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
 export function GuestRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function initAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (isMounted) {
-        setStatus(session ? 'authenticated' : 'unauthenticated');
-      }
-    }
-
-    void initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) {
-        setStatus(session ? 'authenticated' : 'unauthenticated');
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const status = useAuthStatus();
 
   if (status === 'loading') {
     return (
@@ -82,7 +34,7 @@ export function GuestRoute({ children }: { children: ReactNode }) {
   }
 
   if (status === 'authenticated') {
-    const from = location.state?.from?.pathname || '/';
+    const from = (location.state as any)?.from?.pathname || '/';
     return <Navigate to={from} replace />;
   }
 

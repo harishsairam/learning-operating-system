@@ -10,7 +10,8 @@ export function useActivities() {
 
   return useQuery({
     queryKey,
-    queryFn: getActivities,
+    queryFn: () => getActivities(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -22,7 +23,7 @@ export function useCreateActivity() {
   const revisionsKey = useMemo(() => buildUserScopedQueryKey(['revisions'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: createActivity,
+    mutationFn: (activityData: Parameters<typeof createActivity>[1]) => createActivity(user!.id, activityData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: dashboardKey });
@@ -39,8 +40,8 @@ export function useUpdateActivity() {
   const revisionsKey = useMemo(() => buildUserScopedQueryKey(['revisions'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: ({ id, updates }: { id: string, updates: Parameters<typeof updateActivity>[1] }) =>
-      updateActivity(id, updates),
+    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof updateActivity>[2] }) =>
+      updateActivity(user!.id, id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: dashboardKey });
@@ -57,7 +58,7 @@ export function useDeleteActivity() {
   const revisionsKey = useMemo(() => buildUserScopedQueryKey(['revisions'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: ({ id }: { id: string }) => deleteActivity(id),
+    mutationFn: ({ id }: { id: string }) => deleteActivity(user!.id, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: dashboardKey });

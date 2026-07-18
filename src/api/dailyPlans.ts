@@ -1,9 +1,8 @@
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated, withUserScope } from '../lib/auth';
+import { withUserScope } from '../lib/auth';
 import type { DailyPlanInsert, DailyPlanWithRelations } from '../types';
 
-export async function getDailyPlan(date: string) {
-  const user = await ensureAuthenticated();
+export async function getDailyPlan(userId: string, date: string) {
   const { data, error } = await supabase
     .from('daily_plans')
     .select(`
@@ -13,18 +12,17 @@ export async function getDailyPlan(date: string) {
       topics (name)
     `)
     .eq('date', date)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('position', { ascending: true });
 
   if (error) throw error;
   return (data || []) as DailyPlanWithRelations[];
 }
 
-export async function createDailyPlan(item: DailyPlanInsert) {
-  const user = await ensureAuthenticated();
+export async function createDailyPlan(userId: string, item: DailyPlanInsert) {
   const { data, error } = await supabase
     .from('daily_plans')
-    .insert([withUserScope(item as Record<string, unknown>, user.id)])
+    .insert([withUserScope(item as Record<string, unknown>, userId)])
     .select(`
       *,
       projects (name),
@@ -37,13 +35,12 @@ export async function createDailyPlan(item: DailyPlanInsert) {
   return data as DailyPlanWithRelations;
 }
 
-export async function updateDailyPlan(id: string, updates: Partial<DailyPlanInsert>) {
-  const user = await ensureAuthenticated();
+export async function updateDailyPlan(userId: string, id: string, updates: Partial<DailyPlanInsert>) {
   const { data, error } = await supabase
     .from('daily_plans')
-    .update(withUserScope(updates as Record<string, unknown>, user.id))
+    .update(withUserScope(updates as Record<string, unknown>, userId))
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .select(`
       *,
       projects (name),
@@ -56,13 +53,12 @@ export async function updateDailyPlan(id: string, updates: Partial<DailyPlanInse
   return data as DailyPlanWithRelations;
 }
 
-export async function deleteDailyPlan(id: string) {
-  const user = await ensureAuthenticated();
+export async function deleteDailyPlan(userId: string, id: string) {
   const { data, error } = await supabase
     .from('daily_plans')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .select(`
       *,
       projects (name),

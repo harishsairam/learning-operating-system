@@ -1,9 +1,8 @@
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated, withUserScope } from '../lib/auth';
+import { withUserScope } from '../lib/auth';
 import type { KnowledgeUnit } from '../types';
 
-export async function getKnowledgeUnitsByActivity(activityId: string) {
-  const user = await ensureAuthenticated();
+export async function getKnowledgeUnitsByActivity(userId: string, activityId: string) {
   const { data, error } = await supabase
     .from('knowledge_units')
     .select(`
@@ -19,7 +18,7 @@ export async function getKnowledgeUnitsByActivity(activityId: string) {
       )
     `)
     .eq('activity_id', activityId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: true });
 
   if (error) throw error;
@@ -27,15 +26,15 @@ export async function getKnowledgeUnitsByActivity(activityId: string) {
 }
 
 export async function updateKnowledgeUnit(
+  userId: string,
   id: string,
   updates: Partial<Omit<KnowledgeUnit, 'id' | 'created_at' | 'updated_at'>>
 ) {
-  const user = await ensureAuthenticated();
   const { data, error } = await supabase
     .from('knowledge_units')
-    .update(withUserScope(updates as Record<string, unknown>, user.id))
+    .update(withUserScope(updates as Record<string, unknown>, userId))
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .select()
     .single();
 

@@ -11,7 +11,8 @@ export function useCategories() {
 
   return useQuery<Category[]>({
     queryKey,
-    queryFn: getCategories,
+    queryFn: () => getCategories(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -21,7 +22,7 @@ export function useCreateCategory() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['categories'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: createCategory,
+    mutationFn: (categoryData: Parameters<typeof createCategory>[1]) => createCategory(user!.id, categoryData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -34,7 +35,8 @@ export function useUpdateCategory() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['categories'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: updateCategory,
+    mutationFn: ({ id, name, project_id }: { id: string; name: string; project_id: string }) =>
+      updateCategory({ userId: user!.id, id, name, project_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -47,7 +49,7 @@ export function useDeleteCategory() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['categories'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: deleteCategory,
+    mutationFn: (id: string) => deleteCategory(user!.id, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },

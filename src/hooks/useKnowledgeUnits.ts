@@ -11,8 +11,8 @@ export function useActivityKnowledgeUnits(activityId: string) {
 
   return useQuery({
     queryKey,
-    queryFn: () => getKnowledgeUnitsByActivity(activityId),
-    enabled: !!activityId,
+    queryFn: () => getKnowledgeUnitsByActivity(user!.id, activityId),
+    enabled: !!activityId && !!user?.id,
   });
 }
 
@@ -24,7 +24,7 @@ export function useUpdateKnowledgeUnit() {
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string, updates: Partial<Omit<KnowledgeUnit, 'id' | 'created_at' | 'updated_at'>> }) =>
-      updateKnowledgeUnit(id, updates),
+      updateKnowledgeUnit(user!.id, id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: knowledgeUnitsKey });
       queryClient.invalidateQueries({ queryKey: revisionsKey });

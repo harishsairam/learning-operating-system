@@ -11,7 +11,8 @@ export function useTopics() {
 
   return useQuery<Topic[]>({
     queryKey,
-    queryFn: getTopics,
+    queryFn: () => getTopics(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -21,7 +22,7 @@ export function useCreateTopic() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['topics'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: createTopic,
+    mutationFn: (topicData: Parameters<typeof createTopic>[1]) => createTopic(user!.id, topicData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -34,7 +35,8 @@ export function useUpdateTopic() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['topics'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: updateTopic,
+    mutationFn: ({ id, name, category_id }: { id: string; name: string; category_id: string }) =>
+      updateTopic({ userId: user!.id, id, name, category_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -47,7 +49,7 @@ export function useDeleteTopic() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['topics'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: deleteTopic,
+    mutationFn: (id: string) => deleteTopic(user!.id, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },

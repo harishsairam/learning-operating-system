@@ -10,6 +10,7 @@ export function useDailyAnalytics() {
 
   return useQuery<DailyAnalytics, Error>({
     queryKey,
-    queryFn: getDailyAnalytics,
+    queryFn: () => getDailyAnalytics(user!.id),
+    enabled: !!user?.id,
   });
 }

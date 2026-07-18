@@ -10,6 +10,7 @@ export function useProjectsAnalytics() {
 
   return useQuery<ProjectMetrics[], Error>({
     queryKey,
-    queryFn: getProjectsAnalytics,
+    queryFn: () => getProjectsAnalytics(user!.id),
+    enabled: !!user?.id,
   });
 }

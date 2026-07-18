@@ -1,10 +1,9 @@
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated, withUserScope } from '../lib/auth';
+import { withUserScope } from '../lib/auth';
 import type { LearningActivity, MemoryMode } from '../types';
 import { createInitialRevisionState } from '../lib/revisions';
 
-export async function getActivities() {
-  const user = await ensureAuthenticated();
+export async function getActivities(userId: string) {
   const { data, error } = await supabase
     .from('learning_activities')
     .select(`
@@ -19,38 +18,39 @@ export async function getActivities() {
         name
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data;
 }
 
-
-export async function createActivity({
-  project_id,
-  category_id,
-  topic_id,
-  activity_type,
-  memory_mode = 'MEMORIZE',
-  study_date,
-  start_time,
-  duration_minutes,
-  source,
-  notes,
-}: {
-  project_id: string;
-  category_id: string;
-  topic_id: string;
-  activity_type: string;
-  memory_mode?: MemoryMode;
-  study_date: string;
-  start_time: string;
-  duration_minutes: number;
-  source?: string;
-  notes?: string;
-}) {
-  const user = await ensureAuthenticated();
+export async function createActivity(
+  userId: string,
+  {
+    project_id,
+    category_id,
+    topic_id,
+    activity_type,
+    memory_mode = 'MEMORIZE',
+    study_date,
+    start_time,
+    duration_minutes,
+    source,
+    notes,
+  }: {
+    project_id: string;
+    category_id: string;
+    topic_id: string;
+    activity_type: string;
+    memory_mode?: MemoryMode;
+    study_date: string;
+    start_time: string;
+    duration_minutes: number;
+    source?: string;
+    notes?: string;
+  }
+) {
   const { data: newActivity, error: activityError } = await supabase
     .from('learning_activities')
     .insert([withUserScope({
@@ -63,7 +63,7 @@ export async function createActivity({
       duration_minutes,
       source: source || null,
       notes: notes || null,
-    }, user.id)])
+    }, userId)])
     .select()
     .single();
 
@@ -87,7 +87,7 @@ export async function createActivity({
       revision_stage: revisionState.revision_stage,
       next_review_date: memory_mode === 'REFERENCE' ? null : revisionState.next_review_date,
       last_reviewed_at: revisionState.last_reviewed_at,
-    }, user.id)])
+    }, userId)])
     .select()
     .single();
 
@@ -98,6 +98,7 @@ export async function createActivity({
 }
 
 export async function updateActivity(
+  userId: string,
   id: string,
   updates: {
     project_id?: string;
@@ -111,44 +112,40 @@ export async function updateActivity(
     notes?: string | null;
   }
 ) {
-  const user = await ensureAuthenticated();
-
   const { data, error } = await supabase
     .from('learning_activities')
-    .update(withUserScope(updates, user.id))
+    .update(withUserScope(updates, userId))
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .select()
     .single();
 
   if (error) throw error;
 
-  // Also update foreign keys in linked knowledge units to maintain referential integrity
   if (updates.project_id || updates.category_id || updates.topic_id) {
     const kuUpdates: any = {};
     if (updates.project_id) kuUpdates.project_id = updates.project_id;
     if (updates.category_id) kuUpdates.category_id = updates.category_id;
     if (updates.topic_id) kuUpdates.topic_id = updates.topic_id;
-    
+
     const { error: kuError } = await supabase
       .from('knowledge_units')
-      .update(withUserScope(kuUpdates, user.id))
+      .update(withUserScope(kuUpdates, userId))
       .eq('activity_id', id)
-      .eq('user_id', user.id);
-      
+      .eq('user_id', userId);
+
     if (kuError) throw kuError;
   }
 
   return data as LearningActivity;
 }
 
-export async function deleteActivity(id: string) {
-  const user = await ensureAuthenticated();
+export async function deleteActivity(userId: string, id: string) {
   const { error } = await supabase
     .from('learning_activities')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (error) throw error;
   return true;

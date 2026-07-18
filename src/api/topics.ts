@@ -1,9 +1,8 @@
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated, withUserScope } from '../lib/auth';
+import { withUserScope } from '../lib/auth';
 import type { Topic } from '../types';
 
-export async function getTopics() {
-  const user = await ensureAuthenticated();
+export async function getTopics(userId: string) {
   const { data, error } = await supabase
     .from('topics')
     .select(`
@@ -15,18 +14,17 @@ export async function getTopics() {
         )
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data;
 }
 
-export async function createTopic({ name, category_id }: { name: string; category_id: string }) {
-  const user = await ensureAuthenticated();
+export async function createTopic(userId: string, { name, category_id }: { name: string; category_id: string }) {
   const { data, error } = await supabase
     .from('topics')
-    .insert([withUserScope({ name, category_id }, user.id)])
+    .insert([withUserScope({ name, category_id }, userId)])
     .select()
     .single();
 
@@ -34,13 +32,22 @@ export async function createTopic({ name, category_id }: { name: string; categor
   return data as Topic;
 }
 
-export async function updateTopic({ id, name, category_id }: { id: string; name: string; category_id: string }) {
-  const user = await ensureAuthenticated();
+export async function updateTopic({
+  userId,
+  id,
+  name,
+  category_id,
+}: {
+  userId: string;
+  id: string;
+  name: string;
+  category_id: string;
+}) {
   const { data, error } = await supabase
     .from('topics')
-    .update(withUserScope({ name, category_id }, user.id))
+    .update(withUserScope({ name, category_id }, userId))
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .select()
     .single();
 
@@ -48,13 +55,12 @@ export async function updateTopic({ id, name, category_id }: { id: string; name:
   return data as Topic;
 }
 
-export async function deleteTopic(id: string) {
-  const user = await ensureAuthenticated();
+export async function deleteTopic(userId: string, id: string) {
   const { error } = await supabase
     .from('topics')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', userId);
 
   if (error) throw error;
 }

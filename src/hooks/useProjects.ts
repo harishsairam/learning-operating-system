@@ -11,7 +11,8 @@ export function useProjects() {
 
   return useQuery<Project[]>({
     queryKey,
-    queryFn: getProjects,
+    queryFn: () => getProjects(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -21,7 +22,7 @@ export function useCreateProject() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['projects'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: createProject,
+    mutationFn: (name: string) => createProject(user!.id, name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -34,7 +35,7 @@ export function useUpdateProject() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['projects'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => updateProject(id, name),
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateProject(user!.id, id, name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -47,7 +48,7 @@ export function useDeleteProject() {
   const queryKey = useMemo(() => buildUserScopedQueryKey(['projects'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: deleteProject,
+    mutationFn: (id: string) => deleteProject(user!.id, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },

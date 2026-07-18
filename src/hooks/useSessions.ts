@@ -24,7 +24,8 @@ export function useSessions() {
 
   return useQuery({
     queryKey,
-    queryFn: getSessions,
+    queryFn: () => getSessions(user!.id),
+    enabled: !!user?.id,
   });
 }
 
@@ -37,9 +38,10 @@ export function useActiveSession() {
 
   return useQuery({
     queryKey,
-    queryFn: getActiveSession,
+    queryFn: () => getActiveSession(user!.id),
     staleTime: 0, // Always fresh for accurate timer
     gcTime: 5 * 60 * 1000, // Keep 5 min in memory
+    enabled: !!user?.id,
   });
 }
 
@@ -52,10 +54,10 @@ export function useSession(sessionId: string) {
 
   return useQuery({
     queryKey,
-    queryFn: () => getSession(sessionId),
+    queryFn: () => getSession(user!.id, sessionId),
     staleTime: 0, // Always fresh for accurate timer
     gcTime: 5 * 60 * 1000,
-    enabled: !!sessionId,
+    enabled: !!sessionId && !!user?.id,
   });
 }
 
@@ -84,7 +86,7 @@ export function useCreateSession() {
       activity_type: string;
       planned_duration_minutes: number;
     }) =>
-      createSession({
+      createSession(user!.id, {
         project_id,
         category_id,
         topic_id,
@@ -109,7 +111,7 @@ export function usePauseSession() {
   const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: pauseSession,
+    mutationFn: (sessionId: string) => pauseSession(user!.id, sessionId),
     onSuccess: (data) => {
       queryClient.setQueryData(
         [...currentKey, data.id],
@@ -130,7 +132,7 @@ export function useResumeSession() {
   const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: resumeSession,
+    mutationFn: (sessionId: string) => resumeSession(user!.id, sessionId),
     onSuccess: (data) => {
       queryClient.setQueryData(
         [...currentKey, data.id],
@@ -157,7 +159,7 @@ export function useExtendSession() {
     }: {
       sessionId: string;
       additionalMinutes: number;
-    }) => extendSession(sessionId, additionalMinutes),
+    }) => extendSession(user!.id, sessionId, additionalMinutes),
     onSuccess: (data) => {
       queryClient.setQueryData(
         [...currentKey, data.id],
@@ -187,7 +189,7 @@ export function useCompleteSession() {
       sessionId: string;
       reflection?: string;
       notes?: string;
-    }) => completeSession(sessionId, reflection, notes),
+    }) => completeSession(user!.id, sessionId, reflection, notes),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: sessionsKey });
       queryClient.setQueryData(
@@ -209,7 +211,7 @@ export function useCancelSession() {
   const activeKey = useMemo(() => buildUserScopedQueryKey(['sessions', 'active'], user?.id), [user?.id]);
 
   return useMutation({
-    mutationFn: cancelSession,
+    mutationFn: (sessionId: string) => cancelSession(user!.id, sessionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sessionsKey });
       queryClient.setQueryData(activeKey, null);
