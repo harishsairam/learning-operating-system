@@ -61,7 +61,7 @@ function PlanItem({
               <Clock3 className="h-3.5 w-3.5" />
               <span>{item.estimated_duration_minutes} min</span>
             </div>
-            <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="flex items-center gap-2 opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
                 onClick={onStart}
